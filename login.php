@@ -14,6 +14,46 @@ $usuario = '';
 $remember = false;
 $next = $_GET['next'] ?? ($_POST['next'] ?? '');
 
+function sigoi_safe_login_destination(string $next, string $fallback): string
+{
+    $next = trim($next);
+    if ($next === '') {
+        return $fallback;
+    }
+
+    $parsed = parse_url($next);
+    if (!is_array($parsed)) {
+        return $fallback;
+    }
+
+    /*
+     * Solo permitimos destinos internos. Un next con scheme, host,
+     * credenciales o URL protocol-relative nunca se utiliza.
+     */
+    if (
+        !empty($parsed['scheme'])
+        || !empty($parsed['host'])
+        || !empty($parsed['user'])
+        || !empty($parsed['pass'])
+        || str_starts_with($next, '//')
+    ) {
+        return $fallback;
+    }
+
+    $path = basename((string)($parsed['path'] ?? ''));
+    if ($path === '' || !auth_can_access_page($path)) {
+        return $fallback;
+    }
+
+    $destination = $path;
+
+    if (!empty($parsed['query'])) {
+        $destination .= '?' . $parsed['query'];
+    }
+
+    return $destination;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuario = trim((string) ($_POST['usuario'] ?? ''));
     $password = (string) ($_POST['password'] ?? '');
@@ -45,16 +85,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 auth_remember_clear($pdo);
             }
 
-            auth_audit($pdo, 'login_correcto', (int) $user['id'], $user['usuario'] ?: $usuario, $remember ? 'Inicio de sesión con permanecer activo.' : 'Inicio de sesión correcto.');
+            auth_audit(
+                $pdo,
+                'login_correcto',
+                (int) $user['id'],
+                $user['usuario'] ?: $usuario,
+                $remember
+                    ? 'Inicio de sesión con permanecer activo.'
+                    : 'Inicio de sesión correcto.'
+            );
 
-            $destination = auth_url(auth_first_allowed_page($user['rol']));
-            if ($next !== '') {
-                $parsed = parse_url($next);
-                $path = basename($parsed['path'] ?? '');
-                if ($path && auth_can_access_page($path)) {
-                    $destination = $next;
-                }
-            }
+            $fallback = auth_url(auth_first_allowed_page($user['rol']));
+            $destination = sigoi_safe_login_destination((string)$next, $fallback);
 
             header('Location: ' . $destination);
             exit;
@@ -85,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form method="POST" class="auth-form" autocomplete="off">
-                <input type="hidden" name="next" value="<?= htmlspecialchars($next, ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="next" value="<?= htmlspecialchars((string)$next, ENT_QUOTES, 'UTF-8') ?>">
 
                 <label for="usuario">Usuario</label>
                 <input type="text" id="usuario" name="usuario" value="<?= htmlspecialchars($usuario, ENT_QUOTES, 'UTF-8') ?>" required autofocus autocomplete="username" placeholder="Usuario">

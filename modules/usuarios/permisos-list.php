@@ -4,55 +4,24 @@ require_once __DIR__ . '/_helpers.php';
 try {
     global $pdo;
 
-    $usuarioId = (int) ($_GET['usuario_id'] ?? 0);
+    $usuarioId = (int)($_GET['usuario_id'] ?? 0);
 
     if ($usuarioId <= 0) {
-        usuarios_json(
-            false,
-            'Usuario inválido.',
-            [],
-            422
-        );
+        usuarios_json(false, 'Usuario inválido.', [], 422);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Comprobar que la cuenta exista
-    |--------------------------------------------------------------------------
-    */
-
     $stmtUsuario = $pdo->prepare("
-        SELECT
-            id,
-            nombre,
-            usuario,
-            rol,
-            activo
+        SELECT id, nombre, usuario, rol, activo
         FROM usuarios_sistema
         WHERE id = :id
         LIMIT 1
     ");
-
-    $stmtUsuario->execute([
-        ':id' => $usuarioId
-    ]);
-
+    $stmtUsuario->execute([':id' => $usuarioId]);
     $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
 
     if (!$usuario) {
-        usuarios_json(
-            false,
-            'La cuenta seleccionada no existe.',
-            [],
-            404
-        );
+        usuarios_json(false, 'La cuenta seleccionada no existe.', [], 404);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cargar módulos + permisos actuales
-    |--------------------------------------------------------------------------
-    */
 
     $stmt = $pdo->prepare("
         SELECT
@@ -62,18 +31,13 @@ try {
             ms.grupo,
             ms.orden,
             ms.activo,
-
             COALESCE(up.puede_ver, 0) AS puede_ver,
             COALESCE(up.puede_modificar, 0) AS puede_modificar
-
         FROM modulos_sistema ms
-
         LEFT JOIN usuarios_permisos up
             ON up.modulo_id = ms.id
            AND up.usuario_id = :usuario_id
-
         WHERE ms.activo = 1
-
         ORDER BY
             FIELD(
                 ms.grupo,
@@ -85,73 +49,67 @@ try {
             ms.orden ASC,
             ms.nombre ASC
     ");
-
-    $stmt->execute([
-        ':usuario_id' => $usuarioId
-    ]);
-
+    $stmt->execute([':usuario_id' => $usuarioId]);
     $modulos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Agrupar módulos
-    |--------------------------------------------------------------------------
-    */
 
     $grupos = [
         'gestion' => [
             'clave' => 'gestion',
             'nombre' => 'Gestión',
-            'modulos' => []
+            'modulos' => [],
         ],
-
+        'whatsapp' => [
+            'clave' => 'whatsapp',
+            'nombre' => 'WhatsApp',
+            'modulos' => [],
+        ],
         'analitica' => [
             'clave' => 'analitica',
             'nombre' => 'Analítica',
-            'modulos' => []
+            'modulos' => [],
         ],
-
         'administracion' => [
             'clave' => 'administracion',
             'nombre' => 'Administración',
-            'modulos' => []
+            'modulos' => [],
         ],
-
         'acciones' => [
             'clave' => 'acciones',
             'nombre' => 'Otras acciones',
-            'modulos' => []
+            'modulos' => [],
         ],
     ];
 
     foreach ($modulos as $modulo) {
-        $grupo = $modulo['grupo'];
+        /*
+         * Históricamente WhatsApp fue creado con grupo=gestion en BD.
+         * La navegación actual ya lo trata como módulo principal propio,
+         * por lo que aquí normalizamos solo su presentación de permisos.
+         * No requiere alterar la base de datos existente.
+         */
+        $grupo = (string)$modulo['grupo'];
+        if ((string)$modulo['clave'] === 'whatsapp') {
+            $grupo = 'whatsapp';
+        }
 
         if (!isset($grupos[$grupo])) {
             continue;
         }
 
-        /*
-         * Admin siempre se presenta con todo marcado.
-         */
         if ($usuario['rol'] === 'admin') {
             $modulo['puede_ver'] = 1;
             $modulo['puede_modificar'] = 1;
         }
 
         $modulePayload = [
-            'id' => (int) $modulo['modulo_id'],
+            'id' => (int)$modulo['modulo_id'],
             'clave' => $modulo['clave'],
             'nombre' => $modulo['nombre'],
-            'puede_ver' => (int) $modulo['puede_ver'],
-            'puede_modificar' => (int) $modulo['puede_modificar'],
+            'puede_ver' => (int)$modulo['puede_ver'],
+            'puede_modificar' => (int)$modulo['puede_modificar'],
             'tipo' => 'normal',
         ];
 
-        /*
-         * WhatsApp tiene permisos internos más precisos que el resto
-         * de módulos. El permiso general sigue siendo el acceso maestro.
-         */
         if ((string)$modulo['clave'] === 'whatsapp') {
             $modulePayload['tipo'] = 'whatsapp_detallado';
             $modulePayload['whatsapp'] = auth_whatsapp_permissions_for_user(
@@ -166,52 +124,38 @@ try {
         $grupos[$grupo]['modulos'][] = $modulePayload;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Eliminar grupos vacíos
-    |--------------------------------------------------------------------------
-    */
-
     $grupos = array_values(
         array_filter(
             $grupos,
-            function ($grupo) {
+            static function (array $grupo): bool {
                 return !empty($grupo['modulos']);
             }
         )
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Respuesta
-    |--------------------------------------------------------------------------
-    */
 
     usuarios_json(
         true,
         '',
         [
             'usuario' => [
-                'id' => (int) $usuario['id'],
+                'id' => (int)$usuario['id'],
                 'nombre' => $usuario['nombre'],
                 'usuario' => $usuario['usuario'],
                 'rol' => $usuario['rol'],
-                'activo' => (int) $usuario['activo'],
+                'activo' => (int)$usuario['activo'],
                 'es_admin' => $usuario['rol'] === 'admin',
             ],
-
-            'grupos' => $grupos
+            'grupos' => $grupos,
         ]
     );
 
 } catch (Throwable $e) {
+    error_log('Usuarios permisos-list: ' . $e->getMessage());
 
     usuarios_json(
         false,
         'No se pudieron cargar los permisos.',
-        [
-            'debug' => $e->getMessage()
-        ],
+        [],
         500
     );
 }

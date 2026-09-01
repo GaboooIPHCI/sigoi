@@ -736,6 +736,7 @@ try {
             'messages' => 'instagram_mensajes',
             'human_origins' => [
                 'sigoi',
+                'instagram_app',
             ],
             'supports_read' => true,
         ],

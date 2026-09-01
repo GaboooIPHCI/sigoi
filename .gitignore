@@ -10,7 +10,9 @@
 /backups/
 
 # Almacenamiento privado / archivos temporales
-/storage/
+# Conservamos únicamente el .htaccess de protección en Git.
+/storage/*
+!/storage/.htaccess
 
 # Bases de datos y dumps
 *.sql
