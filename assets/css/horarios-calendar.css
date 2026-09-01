@@ -1,0 +1,313 @@
+/* Vista mensual resumida */
+.month-calendar {
+    min-width: 980px;
+}
+
+.month-calendar .month-weekdays {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+}
+
+.month-calendar .month-grid {
+    grid-auto-rows: minmax(128px, auto);
+}
+
+.month-calendar .month-day {
+    min-height: 128px;
+    padding: 8px 9px;
+}
+
+.month-day__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 0 6px;
+    border: 0;
+    background: transparent;
+    color: #172033;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.month-day__header strong {
+    display: grid;
+    place-items: center;
+    width: 25px;
+    height: 25px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.month-day__header span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #f0eaff;
+    color: #5b21b6;
+    font-size: 10px;
+    font-weight: 850;
+}
+
+.month-day.is-today .month-day__header strong {
+    background: #6d28d9;
+    color: #fff;
+}
+
+.month-day.is-other .month-day__header {
+    color: #94a3b8;
+}
+
+.month-day__events {
+    display: grid;
+    gap: 4px;
+}
+
+.month-event-row {
+    display: grid;
+    grid-template-columns: 7px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 5px 6px;
+    border: 1px solid #edf0f4;
+    border-radius: 7px;
+    background: #fff;
+    color: #1e293b;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.month-event-row:hover {
+    border-color: color-mix(in srgb, var(--event-color, #5b21b6) 45%, white);
+    background: color-mix(in srgb, var(--event-color, #5b21b6) 7%, white);
+}
+
+.month-event-row > i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--event-color, #5b21b6);
+}
+
+.month-event-row span,
+.month-event-row strong,
+.month-event-row small {
+    display: block;
+    min-width: 0;
+}
+
+.month-event-row strong,
+.month-event-row small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.month-event-row strong {
+    font-size: 10px;
+}
+
+.month-event-row small {
+    margin-top: 1px;
+    color: #64748b;
+    font-size: 9px;
+}
+
+.month-day__more {
+    width: 100%;
+    margin-top: 5px;
+    padding: 4px 5px;
+    border: 0;
+    border-radius: 6px;
+    background: #f6f3ff;
+    color: #5b21b6;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    text-align: left;
+    cursor: pointer;
+}
+
+.month-day__more:hover {
+    background: #ede9fe;
+}
+
+/* Vista semanal tipo agenda: evita comprimir horarios simultáneos */
+.week-agenda {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(150px, 1fr));
+    align-items: stretch;
+    min-width: 1050px;
+    background: #f8fafc;
+}
+
+.week-agenda-day {
+    min-width: 0;
+    min-height: 620px;
+    border-right: 1px solid #e2e8f0;
+    background: #fff;
+}
+
+.week-agenda-day:last-child {
+    border-right: 0;
+}
+
+.week-agenda-day__header {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 2px 8px;
+    width: 100%;
+    padding: 11px 10px;
+    border: 0;
+    border-bottom: 1px solid #e2e8f0;
+    background: rgba(248, 250, 252, 0.98);
+    color: #172033;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.week-agenda-day__header span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 850;
+    text-transform: uppercase;
+}
+
+.week-agenda-day__header strong {
+    grid-row: 1 / 3;
+    grid-column: 2;
+    font-size: 22px;
+}
+
+.week-agenda-day__header small {
+    color: #64748b;
+    font-size: 10px;
+}
+
+.week-agenda-day.is-today .week-agenda-day__header {
+    box-shadow: inset 0 3px 0 #7c3aed;
+}
+
+.week-agenda-day.is-today .week-agenda-day__header strong {
+    color: #6d28d9;
+}
+
+.week-agenda-day__body {
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    padding: 8px;
+}
+
+.week-agenda-day__body > p {
+    margin: 16px 4px;
+    color: #94a3b8;
+    font-size: 11px;
+    text-align: center;
+}
+
+.week-agenda-event {
+    display: block;
+    width: 100%;
+    min-height: 86px;
+    padding: 9px 8px;
+    border: 1px solid color-mix(in srgb, var(--event-color, #5b21b6) 25%, white);
+    border-left: 4px solid var(--event-color, #5b21b6);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--event-color, #5b21b6) 8%, white);
+    color: #172033;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
+}
+
+.week-agenda-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(15, 23, 42, 0.1);
+}
+
+.week-agenda-event__time,
+.week-agenda-event strong,
+.week-agenda-event small {
+    display: block;
+}
+
+.week-agenda-event__time {
+    margin-bottom: 4px;
+    color: #475569;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.week-agenda-event strong {
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+.week-agenda-event small {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 9px;
+    line-height: 1.25;
+}
+
+.week-agenda-event em {
+    display: inline-flex;
+    max-width: 100%;
+    margin-top: 7px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 8px;
+    font-style: normal;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.week-agenda-event em.status-available {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.week-agenda-event em.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.week-agenda-event em.status-unavailable {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.week-agenda-event em.status-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+@media (max-width: 620px) {
+    .month-calendar {
+        min-width: 840px;
+    }
+
+    .week-agenda {
+        min-width: 1050px;
+    }
+
+    .month-calendar .month-grid {
+        grid-auto-rows: minmax(118px, auto);
+    }
+}

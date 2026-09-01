@@ -1,0 +1,212 @@
+.schedule-smart-search {
+  position: relative;
+  grid-column: span 2;
+}
+
+.schedule-smart-search input[type="search"] {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  color: #1f2937;
+  font: inherit;
+}
+
+.schedule-smart-search input[type="search"]:focus {
+  border-color: #7c3aed;
+  outline: 3px solid rgba(124, 58, 237, .12);
+}
+
+.schedule-smart-search input[type="search"]::placeholder {
+  color: #94a3b8;
+}
+
+.schedule-smart-search__results {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 7px);
+  left: 0;
+  right: 0;
+  max-height: 310px;
+  overflow-y: auto;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 35px rgba(15, 23, 42, .16);
+  padding: 6px;
+}
+
+.schedule-search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 9px 10px;
+  color: #172033;
+  text-align: left;
+  cursor: pointer;
+}
+
+.schedule-search-result:hover,
+.schedule-search-result:focus {
+  background: #f5f3ff;
+  outline: none;
+}
+
+.schedule-search-result strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-search-result small {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #f1f5f9;
+  padding: 3px 7px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.schedule-search-empty {
+  display: block;
+  padding: 12px;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+
+.schedule-specialty-blocks {
+  display: grid;
+  gap: 20px;
+}
+
+.schedule-specialty-block {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.schedule-specialty-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.schedule-specialty-block__header span {
+  display: block;
+  margin-bottom: 3px;
+  color: #8b1023;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.schedule-specialty-block__header h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 18px;
+}
+
+.schedule-specialty-block__header strong {
+  border-radius: 999px;
+  background: #f1f5f9;
+  padding: 6px 10px;
+  color: #475569;
+  font-size: 11px;
+}
+
+.schedule-specialty-doctors {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.schedule-specialty-doctors .schedule-doctor-group {
+  box-shadow: none;
+}
+
+.schedule-specialty-doctors .doctor-group-main {
+  grid-template-columns: 18px minmax(230px, 1fr) 80px 230px 145px 24px;
+}
+
+.schedule-specialty-doctors .doctor-group-status {
+  justify-self: start;
+  width: 145px;
+}
+
+.schedule-specialty-doctors .doctor-group-edit {
+  box-sizing: border-box;
+  width: 150px;
+  text-align: center;
+}
+
+@media (max-width: 1050px) {
+  .schedule-specialty-doctors .doctor-group-main {
+    grid-template-columns: 16px minmax(180px, 1fr) 70px 135px 22px;
+  }
+
+  .schedule-specialty-doctors .doctor-group-next {
+    display: none;
+  }
+
+  .schedule-specialty-doctors .doctor-group-status {
+    width: 135px;
+  }
+}
+
+@media (max-width: 650px) {
+  .schedule-smart-search {
+    grid-column: auto;
+  }
+
+  .schedule-specialty-block__header {
+    align-items: flex-start;
+  }
+
+  .schedule-specialty-doctors .doctor-group-main {
+    grid-template-columns: 16px minmax(0, 1fr) auto 20px;
+  }
+
+  .schedule-specialty-doctors .doctor-group-status {
+    width: auto;
+  }
+}
+
+.list-date-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.list-month-toggle {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.list-month-toggle.is-active {
+  border-color: #7c3aed;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+@media (max-width: 650px) {
+  .list-date-controls {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+}

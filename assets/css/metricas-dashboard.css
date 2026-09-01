@@ -1,0 +1,510 @@
+/* Panel analítico principal. Este archivo solo se carga en metricas.php. */
+
+.metricas-page {
+    --metrics-purple: #6d28d9;
+    --metrics-purple-dark: #4c1d95;
+    --metrics-purple-soft: #f2edff;
+    --metrics-ink: #172033;
+    --metrics-muted: #64748b;
+    --metrics-line: #e7eaf0;
+    gap: 20px;
+    max-width: 1320px;
+}
+
+.metricas-page .metricas-dashboard__hero {
+    position: relative;
+    overflow: hidden;
+    min-height: 176px;
+    padding: 34px 36px;
+    background:
+        radial-gradient(circle at 92% 18%, rgba(124, 58, 237, .16), transparent 26%),
+        linear-gradient(135deg, #fff 0%, #faf8ff 58%, #f1ebff 100%);
+    border-color: #e6ddfb;
+    box-shadow: 0 16px 38px rgba(64, 38, 103, .08);
+}
+
+.metricas-dashboard__hero::after {
+    content: "";
+    position: absolute;
+    right: 42px;
+    top: 50%;
+    width: 116px;
+    height: 116px;
+    border: 20px solid rgba(109, 40, 217, .08);
+    border-radius: 50%;
+    transform: translateY(-50%);
+}
+
+.metricas-dashboard__hero .dashboard-hero__content {
+    position: relative;
+    z-index: 1;
+}
+
+.metricas-dashboard__hero .dashboard-hero__content h1 {
+    color: var(--metrics-ink);
+    font-size: clamp(30px, 3vw, 40px);
+}
+
+.metricas-dashboard__hero .dashboard-hero__content p {
+    max-width: 750px;
+    color: #566176;
+}
+
+.metricas-dashboard__switcher {
+    align-self: flex-start;
+    padding: 6px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 5px 16px rgba(15, 23, 42, .05) !important;
+}
+
+.metricas-dashboard__switcher .metricas-view-switcher__inner {
+    gap: 6px;
+}
+
+.metricas-dashboard__switcher .metricas-view-switcher__label {
+    padding: 0 10px;
+    color: var(--metrics-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.metricas-dashboard__switcher .metricas-view-switcher__buttons {
+    gap: 4px;
+    padding: 3px;
+    border-radius: 10px;
+    background: #f1f3f7;
+}
+
+.metricas-dashboard__switcher .metricas-view-btn {
+    min-width: 110px;
+    padding: 9px 15px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #566176;
+    box-shadow: none;
+}
+
+.metricas-dashboard__switcher .metricas-view-btn.is-active {
+    color: var(--metrics-purple-dark);
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .10);
+}
+
+.metricas-page .metricas-dashboard__filters {
+    padding: 22px 24px;
+    border-color: var(--metrics-line);
+    box-shadow: 0 8px 26px rgba(15, 23, 42, .045);
+}
+
+.metricas-section-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 18px;
+}
+
+.metricas-section-heading--outside {
+    margin: 4px 2px -2px;
+}
+
+.metricas-section-heading__eyebrow {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--metrics-purple);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.metricas-section-heading h2 {
+    margin: 0;
+    color: var(--metrics-ink);
+    font-size: 21px;
+    letter-spacing: -.02em;
+}
+
+.metricas-section-heading p {
+    margin: 0;
+    max-width: 430px;
+    color: var(--metrics-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    text-align: right;
+}
+
+.metricas-dashboard__filters .metricas-filtros__grid {
+    grid-template-columns: minmax(220px, .8fr) minmax(230px, 1fr) minmax(220px, .8fr);
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #ebe7f5;
+    border-radius: 14px;
+    background: #faf9fd;
+}
+
+.metricas-dashboard__filters .field-group label {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.metricas-dashboard__filters input[type="month"] {
+    min-height: 42px;
+    background: #fff;
+}
+
+.metricas-dashboard__filters .metricas-switch-row {
+    min-height: 42px;
+    padding: 0 13px;
+    border: 1px solid #dfe3eb;
+    border-radius: 11px;
+    background: #fff;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.metricas-dashboard__filters .metricas-switch-row input {
+    accent-color: var(--metrics-purple);
+}
+
+.metricas-page #metricasResumenCards {
+    gap: 14px;
+}
+
+.metricas-page .metricas-stat-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 126px;
+    padding: 19px 20px 17px 23px;
+    border-color: var(--metrics-line);
+    border-radius: 16px;
+    box-shadow: 0 7px 22px rgba(15, 23, 42, .045);
+}
+
+.metricas-page .metricas-stat-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--stat-accent, var(--metrics-purple));
+}
+
+.metricas-page .metricas-stat-card::after {
+    content: "";
+    position: absolute;
+    right: -22px;
+    top: -28px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--stat-soft, var(--metrics-purple-soft));
+}
+
+.metricas-page .metricas-stat-card--success { --stat-accent: #16a34a; --stat-soft: #e9f9ee; }
+.metricas-page .metricas-stat-card--warning { --stat-accent: #d97706; --stat-soft: #fff5df; }
+.metricas-page .metricas-stat-card--info { --stat-accent: #0284c7; --stat-soft: #e8f6fc; }
+.metricas-page .metricas-stat-card--campaign { --stat-accent: #9333ea; --stat-soft: #f5eafe; }
+.metricas-page .metricas-stat-card--leads { --stat-accent: #db2777; --stat-soft: #fceaf3; }
+.metricas-page .metricas-stat-card--money { --stat-accent: #0f766e; --stat-soft: #e5f6f3; }
+
+.metricas-page .metricas-stat-card .stat-card__label,
+.metricas-page .metricas-stat-card strong,
+.metricas-page .metricas-stat-card small {
+    position: relative;
+    z-index: 1;
+}
+
+.metricas-page .metricas-stat-card .stat-card__label {
+    margin-bottom: 12px;
+    color: #556176;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.metricas-page .metricas-stat-card strong {
+    margin-bottom: 5px;
+    color: var(--metrics-ink);
+    font-size: clamp(30px, 3vw, 38px);
+}
+
+.metricas-page .metricas-stat-card small {
+    color: #7a8496;
+    font-size: 12px;
+}
+
+.metricas-page .metricas-breakdown-card,
+.metricas-page .metricas-section-card,
+.metricas-page .metricas-chart-card {
+    border-color: var(--metrics-line);
+    border-radius: 18px;
+    box-shadow: 0 8px 26px rgba(15, 23, 42, .045);
+}
+
+.metricas-page .metricas-breakdown-card {
+    position: relative;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+.metricas-breakdown-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 4px;
+    background: var(--breakdown-accent, var(--metrics-purple));
+}
+
+.metricas-breakdown-card--type { --breakdown-accent: #0f8a83; }
+
+.metricas-breakdown-card .table-header {
+    margin: 0;
+    padding: 22px 24px 16px;
+}
+
+.metricas-page .table-header h2 {
+    color: var(--metrics-ink);
+    font-size: 20px;
+}
+
+.metricas-page .section-subtitle {
+    color: var(--metrics-muted);
+    font-size: 13px;
+}
+
+.metricas-breakdown-card .table-wrapper {
+    margin: 0 !important;
+    padding: 0 16px 16px;
+}
+
+.metricas-page .records-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border: 1px solid var(--metrics-line);
+    border-radius: 12px;
+}
+
+.metricas-page .records-table thead th {
+    padding-top: 11px;
+    padding-bottom: 11px;
+    color: #607087;
+    background: #f7f8fb;
+    border-bottom: 1px solid var(--metrics-line);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .065em;
+    text-transform: uppercase;
+}
+
+.metricas-page .records-table tbody td {
+    padding-top: 11px;
+    padding-bottom: 11px;
+    color: #27344a;
+    border-bottom: 1px solid #edf0f4;
+}
+
+.metricas-page .records-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.metricas-page .records-table tbody td:last-child {
+    color: var(--metrics-purple-dark);
+    font-weight: 800;
+}
+
+.metricas-page .metricas-label-cell {
+    position: relative;
+    overflow: hidden;
+}
+
+.metricas-page .metricas-label-cell > span:first-child {
+    position: relative;
+    z-index: 1;
+}
+
+.metricas-page .metricas-row-bar {
+    position: absolute;
+    z-index: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--metric-value, 0%);
+    height: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(90deg, var(--breakdown-accent, var(--metrics-purple)), transparent);
+    opacity: .48;
+}
+
+.metricas-page .metricas-value-cell span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    min-height: 27px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    color: var(--metrics-purple-dark);
+    background: var(--metrics-purple-soft);
+}
+
+.metricas-page .records-table tbody tr:hover {
+    background: #faf8ff;
+}
+
+.metricas-page .metricas-section-card {
+    padding: 24px;
+}
+
+.metricas-section-card--convenios .table-wrapper,
+.metricas-section-card--campaigns > .table-wrapper {
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.metricas-section-card--convenios .records-table tbody td:first-child::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 9px;
+    border-radius: 50%;
+    background: #38bdf8;
+}
+
+.metricas-section-card--campaigns .stats-grid--campaigns {
+    gap: 14px;
+    margin: 2px 0 18px;
+}
+
+.metricas-section-card--campaigns .metricas-stat-card {
+    min-height: 112px;
+}
+
+.metricas-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.metricas-page .metricas-chart-card {
+    min-width: 0;
+    margin: 0;
+    padding: 24px;
+}
+
+.metricas-chart-card--wide {
+    grid-column: 1 / -1;
+}
+
+.metricas-page .metricas-chart-card .metricas-chart-box {
+    height: 330px;
+    min-height: 0;
+    padding: 12px 4px 0;
+}
+
+.metricas-page .metricas-chart-card--wide .metricas-chart-box {
+    height: 300px;
+}
+
+.metricas-page .metricas-chart-box canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.metricas-page .metricas-compare-card {
+    border-color: var(--metrics-line);
+    background: #fafbfc;
+}
+
+@media (max-width: 1050px) {
+    .metricas-page .metricas-dashboard__filters .metricas-filtros__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .metricas-dashboard__filters #bloqueMesComparacion {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 820px) {
+    .metricas-page .metricas-dashboard__hero {
+        min-height: auto;
+        padding: 28px 24px;
+    }
+
+    .metricas-dashboard__hero::after {
+        display: none;
+    }
+
+    .metricas-section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .metricas-section-heading p {
+        text-align: left;
+    }
+
+    .metricas-charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metricas-chart-card--wide {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .metricas-dashboard__switcher {
+        align-self: stretch;
+    }
+
+    .metricas-dashboard__switcher .metricas-view-switcher__label {
+        display: none;
+    }
+
+    .metricas-dashboard__switcher .metricas-view-switcher__buttons,
+    .metricas-dashboard__switcher .metricas-view-btn {
+        width: 100%;
+    }
+
+    .metricas-page .metricas-dashboard__filters {
+        padding: 18px;
+    }
+
+    .metricas-page .metricas-dashboard__filters .metricas-filtros__grid {
+        grid-template-columns: 1fr;
+        padding: 12px;
+    }
+
+    .metricas-dashboard__filters #bloqueMesComparacion {
+        grid-column: auto;
+    }
+
+    .metricas-page .metricas-section-card,
+    .metricas-page .metricas-chart-card {
+        padding: 18px;
+    }
+
+    .metricas-breakdown-card .table-header {
+        padding: 20px 18px 14px;
+    }
+
+    .metricas-breakdown-card .table-wrapper {
+        padding: 0 10px 10px;
+    }
+
+    .metricas-page .records-table th:first-child,
+    .metricas-page .records-table td:first-child {
+        padding-left: 12px;
+    }
+
+    .metricas-page .records-table th:last-child,
+    .metricas-page .records-table td:last-child {
+        padding-right: 12px;
+    }
+}

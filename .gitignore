@@ -1,0 +1,52 @@
+# Variables y credenciales
+.env
+.env.*
+!.env.example
+
+# Dependencias instalables con Composer
+/vendor/
+
+# Backups
+/backups/
+
+# Almacenamiento privado / archivos temporales
+/storage/
+
+# Bases de datos y dumps
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+*.log
+
+# Comprimidos
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+
+# Archivos del sistema
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editores
+.idea/
+.vscode/
+
+# Temporales
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Configuraciones privadas / credenciales
+/config/auth.php
+/config/db.php
+/config/instagram_meta.php
+/config/whatsapp_meta.php
+/config/whatsapp_templates.php
+/config/whatsapp_ycloud.php

@@ -1,0 +1,425 @@
+.metricas-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+}
+
+.metricas-page .dashboard-hero {
+    margin-bottom: 0;
+}
+
+.metricas-page .panel {
+    border: 1px solid var(--border-soft);
+    padding: 22px;
+    margin-bottom: 0;
+}
+
+.metricas-page .stats-grid {
+    margin-bottom: 0;
+}
+
+.metricas-page .section-subtitle {
+    margin: 6px 0 0;
+    color: var(--text-soft);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+/* =========================
+   VIEW SWITCHER
+========================= */
+
+.metricas-view-switcher {
+    padding: 14px 22px;
+}
+
+.metricas-view-switcher__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.metricas-view-switcher__label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.metricas-view-switcher__buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.metricas-view-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text-main);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.metricas-view-btn:hover {
+    background: #f8fafc;
+}
+
+.metricas-view-btn.is-active {
+    background: #111827;
+    color: #fff;
+    border-color: #111827;
+}
+
+.metricas-view-section.hidden {
+    display: none;
+}
+
+/* =========================
+   STATS / CARDS
+========================= */
+
+.metricas-page .stat-card {
+    min-height: 132px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.metricas-page .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.metricas-page .stat-card strong {
+    font-size: 42px;
+    letter-spacing: -0.5px;
+}
+
+.metricas-page .stat-card small {
+    display: block;
+    margin-top: 4px;
+}
+
+.metricas-page #metricasResumenCards {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.stats-grid--campaigns {
+    grid-template-columns: repeat(2, 1fr);
+    margin-bottom: 16px;
+}
+
+/* =========================
+   TABLES
+========================= */
+
+.metricas-page .records-table {
+    width: 100%;
+    min-width: 100%;
+    table-layout: auto;
+}
+
+.metricas-page .records-table th,
+.metricas-page .records-table td {
+    white-space: nowrap;
+}
+
+.metricas-page .records-table td {
+    font-size: 14px;
+}
+
+.metricas-page .records-table tbody tr:hover {
+    background: #faf8ff;
+}
+
+.metricas-page .records-table td:last-child,
+.metricas-page .records-table th:last-child,
+.metricas-page .records-table td:nth-child(3),
+.metricas-page .records-table th:nth-child(3) {
+    text-align: right;
+}
+
+.metricas-page .records-table th:first-child,
+.metricas-page .records-table td:first-child {
+    padding-left: 18px;
+}
+
+.metricas-page .records-table th:last-child,
+.metricas-page .records-table td:last-child {
+    padding-right: 18px;
+}
+
+.metricas-page .table-wrapper {
+    overflow-x: visible;
+}
+
+/* =========================
+   DUAL GRID
+========================= */
+
+.metricas-view-section {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.metricas-dual-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: stretch;
+}
+
+.metricas-dual-grid .panel {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 22px;
+    height: 100%;
+}
+
+.metricas-dual-grid .table-wrapper {
+    margin-top: 6px;
+}
+
+/* =========================
+   CHARTS
+========================= */
+
+.metricas-chart-box {
+    position: relative;
+    min-height: 320px;
+    padding-top: 14px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+    .metricas-page #metricasResumenCards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 960px) {
+    .metricas-dual-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metricas-dual-grid .panel {
+        height: auto;
+    }
+
+    .metricas-view-switcher__inner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .metricas-view-switcher__buttons {
+        width: 100%;
+    }
+
+    .metricas-view-btn {
+        flex: 1;
+        text-align: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .metricas-page #metricasResumenCards,
+    .stats-grid--campaigns {
+        grid-template-columns: 1fr;
+    }
+
+    .metricas-chart-box {
+        min-height: 260px;
+    }
+}
+
+.metricas-filtros__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+    align-items: end;
+}
+
+.metricas-filtros__toggle {
+    justify-content: flex-end;
+}
+
+.metricas-switch-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 38px;
+}
+
+.metricas-switch-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+@media (max-width: 960px) {
+    .metricas-filtros__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metricas-filtros__toggle {
+        justify-content: flex-start;
+    }
+}
+
+.metricas-compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.metricas-compare-card {
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    padding: 16px;
+    background: #fff;
+}
+
+.metricas-compare-title {
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.metricas-compare-title span {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-soft);
+    font-weight: 600;
+}
+
+@media (max-width: 960px) {
+    .metricas-compare-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==============================
+   MÉTRICAS WEB
+============================== */
+
+.metricas-web-page .web-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metricas-web-page .web-comparison-header {
+    align-items: flex-end;
+}
+
+.metricas-web-page .web-comparison-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.metricas-web-page .web-toggle-compare {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color, #334155);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.metricas-web-page .web-toggle-compare input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color, #7a2e58);
+}
+
+.metricas-web-page .web-comparison-actions .field-group {
+    min-width: 240px;
+}
+
+.metricas-web-page .web-comparison-actions select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background-color: #f3f4f6;
+}
+
+@media (max-width: 992px) {
+    .metricas-web-page .web-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .metricas-web-page .web-comparison-header {
+        align-items: stretch;
+        gap: 18px;
+    }
+
+    .metricas-web-page .web-comparison-actions {
+        width: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    .metricas-web-page .web-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metricas-web-page .web-comparison-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .metricas-web-page .web-comparison-actions .field-group {
+        min-width: 100%;
+    }
+}
+
+/* ==============================
+   MÉTRICAS WEB GRÁFICOS
+============================== */
+
+.metricas-web-page .metricas-graficos-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.metricas-web-page .metricas-chart-box {
+    position: relative;
+    height: 360px;
+}
+
+.metricas-web-page .metricas-chart-box--large {
+    height: 420px;
+}
+
+.metricas-web-page .metricas-chart-box canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+@media (max-width: 992px) {
+
+    .metricas-web-page .metricas-graficos-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metricas-web-page .metricas-chart-box {
+        height: 320px;
+    }
+
+    .metricas-web-page .metricas-chart-box--large {
+        height: 360px;
+    }
+}

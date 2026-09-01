@@ -1,0 +1,265 @@
+.schedule-modal__kicker {
+    margin: 0 0 5px;
+    color: #6d28d9;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.schedule-modal__header h2 {
+    margin: 0;
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.weekly-schedule {
+    padding: 16px !important;
+    background: #fbfcff;
+}
+
+.weekly-schedule > p {
+    margin: 2px 0 14px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.weekday-rows {
+    display: grid;
+    gap: 8px;
+}
+
+.weekday-row {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    transition: border-color .18s ease, background .18s ease;
+}
+
+.weekday-row.is-active {
+    border-color: #c4b5fd;
+    background: #faf8ff;
+}
+
+.weekday-toggle {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border: 1px solid #dbe2ea;
+    border-radius: 10px;
+    background: #fff;
+    color: #475569;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.weekday-toggle__mark {
+    width: 21px;
+    height: 21px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    color: transparent;
+    background: #f8fafc;
+    font-size: 12px;
+}
+
+.weekday-row.is-active .weekday-toggle {
+    border-color: #8b5cf6;
+    color: #5b21b6;
+}
+
+.weekday-row.is-active .weekday-toggle__mark {
+    border-color: #6d28d9;
+    background: #6d28d9;
+    color: #fff;
+}
+
+.weekday-row label,
+.single-time-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.weekday-time-area { display:grid; gap:7px; }
+.weekday-time-slots { display:grid; gap:7px; }
+.weekday-time-slot { display:grid; grid-template-columns:minmax(120px,1fr) minmax(120px,1fr) 34px; align-items:end; gap:10px; }
+.weekday-remove-slot { width:34px; height:42px; border:1px solid #fecaca; border-radius:9px; background:#fff; color:#dc2626; font-size:20px; cursor:pointer; }
+.weekday-time-slot:only-child .weekday-remove-slot { visibility:hidden; }
+.weekday-add-slot { justify-self:start; border:0; padding:4px 2px; background:transparent; color:#6d28d9; font-size:12px; font-weight:750; cursor:pointer; }
+.weekday-add-slot:disabled { color:#94a3b8; cursor:not-allowed; }
+
+.weekday-row label span,
+.single-time-fields label span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.weekday-row input:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.single-time-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+@media (max-width: 680px) {
+    .weekday-row {
+        grid-template-columns: 1fr;
+    }
+
+    .weekday-toggle {
+        grid-column: auto;
+    }
+
+    .weekday-time-slot { grid-template-columns:1fr 1fr 34px; }
+}
+
+.linked-search { position: relative; }
+.linked-search__results { display:none; position:absolute; z-index:20; top:100%; left:0; right:0; max-height:190px; overflow:auto; margin-top:4px; padding:5px; border:1px solid #dbe2ea; border-radius:10px; background:#fff; box-shadow:0 12px 28px #0f172a22; }
+.linked-search__results.is-open { display:grid; gap:4px; }
+.linked-search__results button { border:0; border-radius:8px; padding:9px 10px; background:#fff; text-align:left; cursor:pointer; }
+.linked-search__results button:hover { background:#f5f3ff; color:#5b21b6; }
+.linked-search__results button strong,
+.linked-search__results button small { display:block; }
+.linked-search__results button small { margin-top:2px; color:#64748b; font-size:11px; }
+.linked-search__empty { padding:10px; color:#64748b; font-size:13px; }
+.edit-scope-field { padding:12px; border:1px solid #ddd6fe; border-radius:12px; background:#faf8ff; }
+.edit-scope-field small { display:block; margin-top:6px; color:#64748b; font-size:12px; }
+.edit-scope-field select { background:#fff; }
+.schedule-color-field { display:flex; align-items:center; gap:10px; min-height:42px; padding:5px 10px; border:1px solid #dbe2ea; border-radius:10px; background:#fff; }
+.schedule-color-field input[type=color] { width:48px; height:32px; padding:2px; border:0; background:transparent; cursor:pointer; }
+.schedule-color-field output { color:#475569; font-size:12px; font-weight:700; text-transform:uppercase; }
+
+.schedule-quick-config {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, .55fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.schedule-day-presets,
+.same-time-toggle {
+    border: 1px solid #e2e8f0;
+    border-radius: 11px;
+    background: #fff;
+    padding: 11px;
+}
+
+.schedule-day-presets > span {
+    display: block;
+    margin-bottom: 8px;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.schedule-day-presets > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.schedule-day-presets button {
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    background: #fff;
+    padding: 7px 9px;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.schedule-day-presets button:hover,
+.schedule-day-presets button.is-active {
+    border-color: #8b5cf6;
+    background: #f5f3ff;
+    color: #5b21b6;
+}
+
+.same-time-toggle {
+    display: flex !important;
+    align-items: center;
+    flex-direction: row !important;
+    gap: 10px !important;
+    cursor: pointer;
+}
+
+.same-time-toggle input {
+    width: 18px !important;
+    height: 18px;
+    accent-color: #6d28d9;
+}
+
+.same-time-toggle strong,
+.same-time-toggle small {
+    display: block;
+}
+
+.same-time-toggle strong {
+    color: #334155;
+    font-size: 12px;
+}
+
+.same-time-toggle small {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 10px;
+}
+
+.shared-time-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid #c4b5fd;
+    border-radius: 11px;
+    background: #faf8ff;
+}
+
+.shared-time-panel label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.shared-time-panel label span {
+    color: #5b21b6;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.weekly-schedule.is-shared-time .weekday-time-area {
+    display: none;
+}
+
+.weekly-schedule.is-shared-time .weekday-row {
+    grid-template-columns: 1fr;
+    padding: 7px;
+}
+
+@media (max-width: 680px) {
+    .schedule-quick-config,
+    .shared-time-panel {
+        grid-template-columns: 1fr;
+    }
+}

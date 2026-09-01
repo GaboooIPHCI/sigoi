@@ -1,0 +1,58 @@
+.doctor-specialty-group .doctor-table {
+  table-layout: fixed;
+}
+
+.doctor-column-name {
+  width: 36%;
+}
+
+.doctor-column-branches {
+  width: 25%;
+}
+
+.doctor-column-status {
+  width: 25%;
+}
+
+.doctor-column-hours {
+  width: 14%;
+}
+
+.doctor-table--editable .doctor-column-name {
+  width: 28%;
+}
+
+.doctor-table--editable .doctor-column-branches,
+.doctor-table--editable .doctor-column-status {
+  width: 20%;
+}
+
+.doctor-table--editable .doctor-column-hours {
+  width: 10%;
+}
+
+.doctor-table--editable .doctor-column-actions {
+  width: 22%;
+}
+
+.doctor-specialty-group .doctor-table th,
+.doctor-specialty-group .doctor-table td {
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.doctor-hours-heading,
+.doctor-schedule-count {
+  text-align: center !important;
+}
+
+.doctor-status-cell .doctor-state {
+  max-width: 100%;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+}
+
+.doctor-actions-cell .doctor-actions {
+  flex-wrap: wrap;
+}
