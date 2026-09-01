@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SIGOI_MC_BUILD = '3.3';
+    const SIGOI_MC_BUILD = '4.1';
 
     const $ = (id) => document.getElementById(id);
     const state = {
@@ -229,6 +229,8 @@
         if (state.loading) return;
         state.loading = true;
         $('mcRefresh')?.classList.add('is-loading');
+        const refreshLabel = document.querySelector('#mcRefresh .mc-refresh-label');
+        if (refreshLabel) refreshLabel.textContent = 'Actualizando...';
         setStatus('Actualizando analítica...', false);
 
         try {
@@ -257,6 +259,8 @@
         } finally {
             state.loading = false;
             $('mcRefresh')?.classList.remove('is-loading');
+            const refreshLabel = document.querySelector('#mcRefresh .mc-refresh-label');
+            if (refreshLabel) refreshLabel.textContent = 'Actualizar';
         }
     }
 

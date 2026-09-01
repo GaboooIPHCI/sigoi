@@ -1,4 +1,5 @@
 <?php
+$SIGOI_ACCESS_PAGE = 'whatsapp.php';
 require_once __DIR__ . '/templates/header.php';
 
 $permissions = auth_whatsapp_permissions();
@@ -60,7 +61,7 @@ if (!$canAnalytics) {
                 <button type="button" id="mcApplyCustom">Aplicar</button>
             </div>
 
-            <button type="button" class="mc-refresh" id="mcRefresh">↻ Actualizar</button>
+            <button type="button" class="mc-refresh" id="mcRefresh"><span class="mc-refresh-icon" aria-hidden="true">↻</span><span class="mc-refresh-label">Actualizar</span></button>
         </section>
 
         <section class="mc-status-line" aria-live="polite">
@@ -204,8 +205,8 @@ window.SIGOI_MC_DEFAULT_CHANNEL = <?= json_encode(
     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
 ) ?>;
 </script>
-<link rel="stylesheet" href="assets/css/analytics-multicanal.css?v=3.3">
-<script src="assets/js/analytics-multicanal.js?v=3.3"></script>
+<link rel="stylesheet" href="assets/css/analytics-multicanal.css?v=4.1">
+<script src="assets/js/analytics-multicanal.js?v=4.1"></script>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/templates/footer.php'; ?>

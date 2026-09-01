@@ -16,16 +16,25 @@ try {
     $conversation = ig_inbox_conversation_row($pdo, $id);
     if (!$conversation) instagram_json(false, 'La conversación ya no existe.', [], 404);
 
-    // Si el webhook original llegó con MID pero sin cuerpo, intenta recuperar
-    // el texto desde Meta antes de construir la conversación para la bandeja.
     ig_repair_conversation_texts($pdo, $id);
 
-    $stmt = $pdo->prepare("SELECT m.*, u.nombre AS usuario_nombre
-        FROM instagram_mensajes m
+    /*
+     * Igual que WhatsApp: tomamos los 400 mensajes más recientes
+     * y después los mostramos de antiguo a nuevo.
+     */
+    $stmt = $pdo->prepare("
+        SELECT m.*, u.nombre AS usuario_nombre
+        FROM (
+            SELECT id
+            FROM instagram_mensajes
+            WHERE conversacion_id = :id
+            ORDER BY creado_en DESC, id DESC
+            LIMIT 400
+        ) recent
+        INNER JOIN instagram_mensajes m ON m.id = recent.id
         LEFT JOIN usuarios_sistema u ON u.id = m.usuario_id
-        WHERE m.conversacion_id = :id
         ORDER BY m.creado_en ASC, m.id ASC
-        LIMIT 400");
+    ");
     $stmt->execute([':id' => $id]);
     $messages = array_map('ig_inbox_message_payload', $stmt->fetchAll(PDO::FETCH_ASSOC));
 
@@ -56,13 +65,15 @@ try {
     $conversation['tiempo_primera_respuesta_humana_seg'] = $firstHumanSeconds;
     $conversation['telefono'] = null;
 
+    $window = ig_inbox_send_window($pdo, $id);
+
     instagram_json(true, '', [
         'canal' => 'instagram',
         'conversacion' => $conversation,
         'mensajes' => $messages,
-        'ventana_24h' => ig_inbox_send_window($pdo, $id),
+        'ventana_24h' => $window,
         'send_enabled' => ig_inbox_send_enabled(),
-        'can_send_media' => ig_inbox_send_enabled() && !empty(ig_inbox_send_window($pdo, $id)['active']),
+        'can_send_media' => ig_inbox_send_enabled() && !empty($window['active']),
         'usuarios' => auth_can_whatsapp('bandeja_gestionar') ? ig_inbox_users($pdo) : [],
         'can_modify' => auth_can_whatsapp_any(['bandeja_responder', 'bandeja_gestionar']),
         'can_reply' => auth_can_whatsapp('bandeja_responder'),

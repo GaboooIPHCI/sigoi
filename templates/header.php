@@ -2,11 +2,24 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/auth.php';
 
-auth_require_page_access();
-
 $currentPage = basename($_SERVER['PHP_SELF']);
+$pageAccessOverride = isset($SIGOI_ACCESS_PAGE) ? trim((string)$SIGOI_ACCESS_PAGE) : '';
+
+if ($pageAccessOverride !== '') {
+    if (!auth_can_access_page($pageAccessOverride)) {
+        http_response_code(403);
+        exit('No tienes permiso para acceder a esta sección.');
+    }
+} else {
+    auth_require_page_access();
+}
+
 $currentUser = auth_user();
 $currentRole = auth_user_role();
+$currentWhatsappTab = strtolower(trim((string)($_GET['tab'] ?? 'inbox')));
+if (!in_array($currentWhatsappTab, ['inbox', 'automation', 'library'], true)) {
+    $currentWhatsappTab = 'inbox';
+}
 
 $menuGroups = [
     'gestion' => [
@@ -15,7 +28,39 @@ $menuGroups = [
             ['page' => 'index.php', 'label' => 'Pacientes'],
             ['page' => 'campanias.php', 'label' => 'Campañas'],
             ['page' => 'convenios.php', 'label' => 'Convenios'],
-            ['page' => 'whatsapp.php', 'label' => 'WhatsApp'],
+        ],
+    ],
+
+    'whatsapp' => [
+        'label' => 'WhatsApp',
+        'items' => [
+            [
+                'page' => 'whatsapp.php',
+                'url' => 'whatsapp.php?tab=inbox',
+                'tab' => 'inbox',
+                'label' => 'Bandeja',
+                'access_page' => 'whatsapp.php',
+            ],
+            [
+                'page' => 'whatsapp.php',
+                'url' => 'whatsapp.php?tab=automation',
+                'tab' => 'automation',
+                'label' => 'Automatización y reglas',
+                'access_page' => 'whatsapp.php',
+            ],
+            [
+                'page' => 'whatsapp.php',
+                'url' => 'whatsapp.php?tab=library',
+                'tab' => 'library',
+                'label' => 'Plantillas y respuestas',
+                'access_page' => 'whatsapp.php',
+            ],
+            [
+                'page' => 'analitica-multicanal.php',
+                'url' => 'analitica-multicanal.php',
+                'label' => 'Analítica multicanal',
+                'access_page' => 'whatsapp.php',
+            ],
         ],
     ],
 
@@ -50,10 +95,11 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data de Pacientes</title>
+    <title>S.I.G.O.I.</title>
     <link rel="shortcut icon" href="assets/img/favicon.ico" type="image/x-icon">
 
     <link rel="stylesheet" href="assets/css/styles.css?v=4.8.1">
+    <link rel="stylesheet" href="assets/css/sigoi-navigation.css?v=4.1">
 
     <?php if ($currentPage === 'campanias.php'): ?>
         <link rel="stylesheet" href="assets/css/campanias.css">
@@ -82,10 +128,11 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
         <link rel="stylesheet" href="assets/css/medicos.css?v=3.0">
     <?php endif; ?>
 
-
     <?php if ($currentPage === 'whatsapp.php'): ?>
         <link rel="stylesheet" href="assets/css/whatsapp.css?v=3.0">
     <?php endif; ?>
+
+    <script src="assets/js/sigoi-navigation.js?v=4.1" defer></script>
 </head>
 <body data-role="<?= htmlspecialchars((string) $currentRole, ENT_QUOTES, 'UTF-8') ?>">
 <script>
@@ -102,9 +149,9 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
         canModifySchedules: <?= auth_can_modify_module('horarios') ? 'true' : 'false' ?>,
     };
     window.APP_CSRF_TOKEN = <?= json_encode(
-    auth_csrf_token(),
-    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-) ?>;
+        auth_csrf_token(),
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    ) ?>;
 </script>
 
 <header class="site-header">
@@ -116,12 +163,15 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
 
         <div class="site-header__right">
             <nav class="site-header__actions" aria-label="Navegación principal">
-                <?php foreach ($menuGroups as $group): ?>
-            
+                <?php foreach ($menuGroups as $groupKey => $group): ?>
+
                     <?php
                     $visibleItems = array_filter(
                         $group['items'],
-                        fn($item) => auth_can_access_page($item['page'])
+                        static function ($item) {
+                            $accessPage = $item['access_page'] ?? $item['page'];
+                            return auth_can_access_page($accessPage);
+                        }
                     );
 
                     if (!$visibleItems) {
@@ -131,49 +181,79 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
                     $groupActive = false;
 
                     foreach ($visibleItems as $item) {
+                        $itemPage = $item['page'];
+                        $itemTab = $item['tab'] ?? null;
+
+                        if ($currentPage === $itemPage) {
+                            if (
+                                $itemPage !== 'whatsapp.php'
+                                || $itemTab === null
+                                || $currentWhatsappTab === $itemTab
+                            ) {
+                                $groupActive = true;
+                                break;
+                            }
+                        }
+
                         if (
-                            $currentPage === $item['page']
-                            || (
-                                $item['page'] === 'google-ads.php'
-                                && $currentPage === 'google-ads-detalle.php'
-                            )
+                            $itemPage === 'google-ads.php'
+                            && $currentPage === 'google-ads-detalle.php'
                         ) {
                             $groupActive = true;
                             break;
                         }
                     }
                     ?>
-            
-                    <div class="nav-dropdown">
-                        <button type="button" class="site-link nav-dropdown__trigger <?= $groupActive ? 'is-active' : '' ?>">
+
+                    <div class="nav-dropdown" data-nav-dropdown>
+                        <button
+                            type="button"
+                            class="site-link nav-dropdown__trigger <?= $groupActive ? 'is-active' : '' ?>"
+                            aria-expanded="false"
+                        >
                             <?= htmlspecialchars($group['label'], ENT_QUOTES, 'UTF-8') ?>
                             <span class="nav-dropdown__arrow">▼</span>
                         </button>
-            
+
                         <div class="nav-dropdown__menu">
-            
+
                             <?php foreach ($visibleItems as $item): ?>
-            
+
                                 <?php
-                                $isActive = $currentPage === $item['page']
-                                    || (
-                                        $item['page'] === 'google-ads.php'
-                                        && $currentPage === 'google-ads-detalle.php'
-                                    );
+                                $itemPage = $item['page'];
+                                $itemTab = $item['tab'] ?? null;
+                                $isActive = false;
+
+                                if ($currentPage === $itemPage) {
+                                    $isActive = $itemPage !== 'whatsapp.php'
+                                        || $itemTab === null
+                                        || $currentWhatsappTab === $itemTab;
+                                }
+
+                                if (
+                                    $itemPage === 'google-ads.php'
+                                    && $currentPage === 'google-ads-detalle.php'
+                                ) {
+                                    $isActive = true;
+                                }
+
+                                $itemUrl = $item['url'] ?? $itemPage;
                                 ?>
-            
-                                <a href="<?= htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8') ?>"
-                                    class="nav-dropdown__item <?= $isActive ? 'is-active' : '' ?>">
+
+                                <a
+                                    href="<?= htmlspecialchars($itemUrl, ENT_QUOTES, 'UTF-8') ?>"
+                                    class="nav-dropdown__item <?= $isActive ? 'is-active' : '' ?>"
+                                >
                                     <?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8') ?>
                                 </a>
-            
+
                             <?php endforeach; ?>
-            
+
                         </div>
                     </div>
-            
+
                 <?php endforeach; ?>
-            
+
                 <?php if (auth_can_access_page('exportacion.php')): ?>
                     <?php if ($currentPage === 'index.php' || $currentPage === 'campanias.php'): ?>
                         <div class="export-dropdown">
@@ -184,8 +264,9 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
                             </div>
                         </div>
                     <?php else: ?>
-                        <a href="exportacion.php" class="site-link <?= $currentPage === 'exportacion.php' ? 'is-active' : '' ?>">Exportar
-                            Excel</a>
+                        <a href="exportacion.php" class="site-link <?= $currentPage === 'exportacion.php' ? 'is-active' : '' ?>">
+                            Exportar Excel
+                        </a>
                     <?php endif; ?>
                 <?php endif; ?>
             </nav>

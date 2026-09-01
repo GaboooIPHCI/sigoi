@@ -3,6 +3,33 @@ require_once __DIR__ . '/_inbox_helpers.php';
 auth_require_whatsapp_permission('bandeja_ver');
 auth_require_whatsapp_channel('whatsapp');
 
+function whatsapp_search_excerpt(string $content, string $query, int $maxLength = 180): string
+{
+    $content = trim($content);
+    $query = trim($query);
+    if ($content === '' || $query === '') return $content;
+
+    if (function_exists('mb_stripos') && function_exists('mb_substr') && function_exists('mb_strlen')) {
+        $position = mb_stripos($content, $query, 0, 'UTF-8');
+        $length = mb_strlen($content, 'UTF-8');
+        if ($position === false) $position = 0;
+        $start = max(0, (int)$position - 55);
+        $excerpt = mb_substr($content, $start, $maxLength, 'UTF-8');
+        if ($start > 0) $excerpt = '…' . $excerpt;
+        if (($start + $maxLength) < $length) $excerpt .= '…';
+        return $excerpt;
+    }
+
+    $position = stripos($content, $query);
+    $length = strlen($content);
+    if ($position === false) $position = 0;
+    $start = max(0, (int)$position - 55);
+    $excerpt = substr($content, $start, $maxLength);
+    if ($start > 0) $excerpt = '…' . $excerpt;
+    if (($start + $maxLength) < $length) $excerpt .= '…';
+    return $excerpt;
+}
+
 try {
     global $pdo;
 
@@ -17,8 +44,29 @@ try {
     $params = [];
 
     if ($q !== '') {
-        $where[] = '(c.nombre_personalizado LIKE :q OR c.nombre_contacto LIKE :q OR c.telefono LIKE :q OR c.username_whatsapp LIKE :q OR c.ultimo_mensaje_preview LIKE :q OR c.notas_contacto LIKE :q)';
-        $params[':q'] = '%' . $q . '%';
+        $where[] = '(
+            c.nombre_personalizado LIKE :q_name
+            OR c.nombre_contacto LIKE :q_contact
+            OR c.telefono LIKE :q_phone
+            OR c.username_whatsapp LIKE :q_username
+            OR c.ultimo_mensaje_preview LIKE :q_preview
+            OR c.notas_contacto LIKE :q_notes
+            OR EXISTS (
+                SELECT 1
+                FROM whatsapp_mensajes sm
+                WHERE sm.conversacion_id = c.id
+                  AND sm.contenido LIKE :q_message
+            )
+        )';
+
+        $like = '%' . $q . '%';
+        $params[':q_name'] = $like;
+        $params[':q_contact'] = $like;
+        $params[':q_phone'] = $like;
+        $params[':q_username'] = $like;
+        $params[':q_preview'] = $like;
+        $params[':q_notes'] = $like;
+        $params[':q_message'] = $like;
     }
 
     if ($filter === 'pending') {
@@ -49,11 +97,50 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $matchStmt = null;
+    if ($q !== '') {
+        $matchStmt = $pdo->prepare("
+            SELECT contenido, tipo, creado_en
+            FROM whatsapp_mensajes
+            WHERE conversacion_id = :id
+              AND contenido LIKE :q
+            ORDER BY creado_en DESC, id DESC
+            LIMIT 1
+        ");
+    }
+
     foreach ($rows as &$row) {
         $row['id'] = (int)$row['id'];
         $row['requiere_humano'] = (int)$row['requiere_humano'];
         $row['no_leidos'] = (int)$row['no_leidos'];
         $row['asignado_a'] = $row['asignado_a'] !== null ? (int)$row['asignado_a'] : null;
+        $row['busqueda_coincidencia'] = null;
+
+        if ($matchStmt) {
+            $matchStmt->execute([
+                ':id' => $row['id'],
+                ':q' => '%' . $q . '%',
+            ]);
+
+            $match = $matchStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+            if ($match) {
+                $content = trim((string)($match['contenido'] ?? ''));
+                if ($content === '') {
+                    $content = '[' . ucfirst((string)($match['tipo'] ?? 'mensaje')) . ']';
+                }
+
+                $content = whatsapp_search_excerpt($content, $q, 180);
+
+                $row['busqueda_coincidencia'] = $content;
+                $row['ultimo_mensaje_preview'] = 'Coincidencia: ' . $content;
+            } elseif (stripos((string)($row['notas_contacto'] ?? ''), $q) !== false) {
+                $note = whatsapp_search_excerpt((string)$row['notas_contacto'], $q, 180);
+                $row['busqueda_coincidencia'] = 'Nota: ' . $note;
+                $row['ultimo_mensaje_preview'] = 'Coincidencia en nota: ' . $note;
+            }
+        }
+
         if (trim((string)$row['ultimo_mensaje_preview']) === '') {
             $previewStmt = $pdo->prepare("SELECT contenido, tipo FROM whatsapp_mensajes
                 WHERE conversacion_id = :id ORDER BY creado_en DESC, id DESC LIMIT 1");

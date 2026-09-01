@@ -15,18 +15,29 @@ try {
         whatsapp_json(false, 'La conversación ya no existe.', [], 404);
     }
 
-    $stmt = $pdo->prepare("SELECT m.*, u.nombre AS usuario_nombre, r.nombre AS regla_nombre
-        FROM whatsapp_mensajes m
+    /*
+     * Cargamos los 400 mensajes MÁS RECIENTES y luego los ordenamos
+     * cronológicamente. Antes, ORDER BY ASC + LIMIT 400 podía ocultar
+     * los mensajes nuevos en conversaciones muy largas.
+     */
+    $stmt = $pdo->prepare("
+        SELECT m.*, u.nombre AS usuario_nombre, r.nombre AS regla_nombre
+        FROM (
+            SELECT id
+            FROM whatsapp_mensajes
+            WHERE conversacion_id = :id
+            ORDER BY creado_en DESC, id DESC
+            LIMIT 400
+        ) recent
+        INNER JOIN whatsapp_mensajes m ON m.id = recent.id
         LEFT JOIN usuarios_sistema u ON u.id = m.usuario_id
         LEFT JOIN whatsapp_reglas r ON r.id = m.regla_id
-        WHERE m.conversacion_id = :id
         ORDER BY m.creado_en ASC, m.id ASC
-        LIMIT 400");
+    ");
     $stmt->execute([':id' => $id]);
     $messageRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // El historial principal nunca depende de la tabla de plantillas.
-    // Si UX 7.0 todavía no ha creado esa tabla, el chat sigue abriendo normalmente.
     $templateMap = [];
     try {
         $tpl = $pdo->prepare("SELECT mensaje_id, plantilla_nombre, plantilla_idioma, plantilla_categoria, variables_json
@@ -60,7 +71,6 @@ try {
 
     $window = wa_inbox_send_window($pdo, $id);
 
-    // Abrir una conversación equivale a leer sus mensajes para este inbox compartido.
     if ((int)$conversation['no_leidos'] > 0) {
         $clear = $pdo->prepare("UPDATE whatsapp_conversaciones SET no_leidos = 0 WHERE id = :id");
         $clear->execute([':id' => $id]);
