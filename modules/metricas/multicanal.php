@@ -50,6 +50,7 @@ register_shutdown_function(static function (): void {
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/auth.php';
+require_once __DIR__ . '/../../config/messenger_schema.php';
 
 auth_require_module_view('whatsapp');
 
@@ -706,6 +707,12 @@ try {
 
     $permissions = auth_whatsapp_permissions();
 
+    messenger_ensure_schema($pdo);
+    $permissions['canal_messenger'] = messenger_channel_permission_for_user(
+        $pdo,
+        (int)auth_user_id()
+    ) ? 1 : 0;
+
     if (empty($permissions['analitica_ver'])) {
         multicanal_json(
             false,
@@ -741,11 +748,6 @@ try {
             'supports_read' => true,
         ],
 
-        /*
-         * Messenger queda preparado como un adaptador adicional.
-         * Cuando existan permiso + tablas, no hará falta reescribir
-         * el dashboard ni las consultas agregadas.
-         */
         'messenger' => [
             'label' => 'Messenger',
             'permission' => 'canal_messenger',
@@ -753,8 +755,9 @@ try {
             'messages' => 'messenger_mensajes',
             'human_origins' => [
                 'sigoi',
+                'messenger_app',
             ],
-            'supports_read' => false,
+            'supports_read' => true,
         ],
     ];
 

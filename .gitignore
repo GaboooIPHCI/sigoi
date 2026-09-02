@@ -49,6 +49,7 @@ Desktop.ini
 /config/auth.php
 /config/db.php
 /config/instagram_meta.php
+/config/messenger_meta.php
 /config/whatsapp_meta.php
 /config/whatsapp_templates.php
 /config/whatsapp_ycloud.php

@@ -40,6 +40,16 @@ window.SIGOI_WHATSAPP_MENU_PERMISSIONS = <?= json_encode(
     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
 ) ?>;
 </script>
+
 <script src="assets/js/sigoi-whatsapp-guard.js?v=4.3"></script>
+
+<?php if ($currentPage === 'whatsapp.php'): ?>
+    <script src="assets/js/sigoi-messenger-channel.js?v=5.1"></script>
+<?php endif; ?>
+
+<?php if ($currentPage === 'usuarios.php'): ?>
+    <script src="assets/js/sigoi-messenger-permissions.js?v=5.0"></script>
+<?php endif; ?>
+
 </body>
 </html>

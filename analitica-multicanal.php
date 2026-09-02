@@ -2,10 +2,18 @@
 $SIGOI_ACCESS_PAGE = 'whatsapp.php';
 require_once __DIR__ . '/templates/header.php';
 
+require_once __DIR__ . '/config/messenger_schema.php';
+
 $permissions = auth_whatsapp_permissions();
+messenger_ensure_schema($pdo);
 $canAnalytics = !empty($permissions['analitica_ver']);
 $canWhatsApp = !empty($permissions['canal_whatsapp']);
 $canInstagram = !empty($permissions['canal_instagram']);
+$canMessenger = messenger_channel_permission_for_user(
+    $pdo,
+    (int)auth_user_id()
+);
+$enabledChannelCount = (int)$canWhatsApp + (int)$canInstagram + (int)$canMessenger;
 
 if (!$canAnalytics) {
     http_response_code(403);
@@ -31,14 +39,17 @@ if (!$canAnalytics) {
             <div class="mc-filter-group">
                 <span>Canal</span>
                 <div class="mc-channel-buttons" id="mcChannelButtons">
-                    <?php if ($canWhatsApp && $canInstagram): ?>
+                    <?php if ($enabledChannelCount > 1): ?>
                         <button type="button" class="is-active" data-mc-channel="all">Todos</button>
                     <?php endif; ?>
                     <?php if ($canWhatsApp): ?>
-                        <button type="button" class="<?= !$canInstagram ? 'is-active' : '' ?>" data-mc-channel="whatsapp">WhatsApp</button>
+                        <button type="button" class="<?= $enabledChannelCount === 1 ? 'is-active' : '' ?>" data-mc-channel="whatsapp">WhatsApp</button>
                     <?php endif; ?>
                     <?php if ($canInstagram): ?>
-                        <button type="button" class="<?= !$canWhatsApp ? 'is-active' : '' ?>" data-mc-channel="instagram">Instagram</button>
+                        <button type="button" class="<?= $enabledChannelCount === 1 ? 'is-active' : '' ?>" data-mc-channel="instagram">Instagram</button>
+                    <?php endif; ?>
+                    <?php if ($canMessenger): ?>
+                        <button type="button" class="<?= $enabledChannelCount === 1 ? 'is-active' : '' ?>" data-mc-channel="messenger">Messenger</button>
                     <?php endif; ?>
                 </div>
             </div>
@@ -192,21 +203,34 @@ if (!$canAnalytics) {
         </section>
 
         <section class="panel mc-note">
-            <strong>Base preparada para Messenger</strong>
-            <p>La interfaz consume canales dinámicamente. Cuando Messenger tenga sus tablas y permiso correspondiente, podrá agregarse sin rehacer el panel.</p>
+            <strong>Analítica multicanal activa</strong>
+            <p>WhatsApp, Instagram y Messenger se agregan sobre la misma estructura. Cada usuario solo ve los canales que tiene habilitados.</p>
         </section>
     <?php endif; ?>
 </main>
 
 <?php if ($canAnalytics): ?>
 <script>
+<?php
+$defaultAnalyticsChannel = 'all';
+
+if ($enabledChannelCount === 1) {
+    if ($canMessenger) {
+        $defaultAnalyticsChannel = 'messenger';
+    } elseif ($canInstagram) {
+        $defaultAnalyticsChannel = 'instagram';
+    } else {
+        $defaultAnalyticsChannel = 'whatsapp';
+    }
+}
+?>
 window.SIGOI_MC_DEFAULT_CHANNEL = <?= json_encode(
-    ($canWhatsApp && $canInstagram) ? 'all' : ($canInstagram ? 'instagram' : 'whatsapp'),
+    $defaultAnalyticsChannel,
     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
 ) ?>;
 </script>
-<link rel="stylesheet" href="assets/css/analytics-multicanal.css?v=4.1">
-<script src="assets/js/analytics-multicanal.js?v=4.1"></script>
+<link rel="stylesheet" href="assets/css/analytics-multicanal.css?v=5.0">
+<script src="assets/js/analytics-multicanal.js?v=5.0"></script>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/templates/footer.php'; ?>

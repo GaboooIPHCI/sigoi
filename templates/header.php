@@ -100,6 +100,9 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
 
     <link rel="stylesheet" href="assets/css/styles.css?v=4.8.1">
     <link rel="stylesheet" href="assets/css/sigoi-navigation.css?v=4.1">
+    <?php if (in_array($currentPage, ['whatsapp.php', 'analitica-multicanal.php', 'usuarios.php'], true)): ?>
+        <link rel="stylesheet" href="assets/css/sigoi-messenger.css?v=5.1">
+    <?php endif; ?>
 
     <?php if ($currentPage === 'campanias.php'): ?>
         <link rel="stylesheet" href="assets/css/campanias.css">
@@ -133,6 +136,9 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
     <?php endif; ?>
 
     <script src="assets/js/sigoi-navigation.js?v=4.1" defer></script>
+    <?php if ($currentPage === 'whatsapp.php'): ?>
+        <script src="assets/js/sigoi-messenger-preload.js?v=5.0"></script>
+    <?php endif; ?>
 </head>
 <body data-role="<?= htmlspecialchars((string) $currentRole, ENT_QUOTES, 'UTF-8') ?>">
 <script>
@@ -164,6 +170,17 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
         <div class="site-header__right">
             <nav class="site-header__actions" aria-label="Navegación principal">
                 <?php foreach ($menuGroups as $groupKey => $group): ?>
+
+                    <?php if ($groupKey === 'whatsapp'): ?>
+                        <?php if (!auth_can_access_page('whatsapp.php')) continue; ?>
+                        <?php $whatsappMainActive = in_array($currentPage, ['whatsapp.php', 'analitica-multicanal.php'], true); ?>
+                        <a
+                            href="whatsapp.php"
+                            class="site-link <?= $whatsappMainActive ? 'is-active' : '' ?>"
+                            <?= $whatsappMainActive ? 'aria-current="page"' : '' ?>
+                        >WhatsApp</a>
+                        <?php continue; ?>
+                    <?php endif; ?>
 
                     <?php
                     $visibleItems = array_filter(

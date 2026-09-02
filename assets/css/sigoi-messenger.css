@@ -1,0 +1,58 @@
+
+/* Messenger dentro de la bandeja multicanal S.I.G.O.I. */
+
+.wa-channel-filter-icon.is-messenger,
+.wa-channel-mark.is-messenger {
+    background: rgba(24, 119, 242, .14);
+    color: #1769d2;
+}
+
+.wa-conversation-channel.is-messenger,
+.wa-chat-channel-badge.is-messenger {
+    background: rgba(24, 119, 242, .10);
+    color: #1769d2;
+    border-color: rgba(24, 119, 242, .18);
+}
+
+.wa-message-bubble.is-messenger {
+    border-color: rgba(24, 119, 242, .16);
+}
+
+.wa-detail-channel-card.is-messenger {
+    border-color: rgba(24, 119, 242, .18);
+}
+
+.wa-permission-channel-messenger span {
+    white-space: nowrap;
+}
+
+.mc-channel-badge.is-messenger {
+    background: rgba(24, 119, 242, .12);
+}
+
+.wa-search-highlight {
+    padding: 0 2px;
+    border-radius: 4px;
+    background: rgba(91, 33, 182, .18);
+    color: inherit;
+    font-weight: 800;
+}
+
+@media (max-width: 720px) {
+    #waInboxChannels {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #waInboxChannels button {
+        justify-content: center;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    #waInboxChannels {
+        grid-template-columns: 1fr;
+    }
+}
+\n\n/* ===== Pulido 5.1: filtros equilibrados y responsive ===== */\n.wa-inbox-list-pane #waInboxChannels {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n    gap: 6px;\n    padding: 0 14px 8px;\n    overflow: visible;\n}\n\n.wa-inbox-list-pane #waInboxChannels button {\n    width: 100%;\n    min-width: 0;\n    display: inline-flex;\n    align-items: center;\n    justify-content: center;\n    gap: 5px;\n    overflow: hidden;\n    text-overflow: ellipsis;\n}\n\n.wa-inbox-list-pane #waInboxFilters {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n    gap: 6px;\n    padding: 0 14px 12px;\n    overflow: visible;\n}\n\n.wa-inbox-list-pane #waInboxFilters button {\n    width: 100%;\n    min-width: 0;\n    text-align: center;\n    overflow: hidden;\n    text-overflow: ellipsis;\n}\n\n.wa-inbox-list-pane .wa-inbox-search {\n    margin-bottom: 10px;\n}\n\n@media (max-width: 720px) {\n    .wa-inbox-list-pane #waInboxChannels,\n    .wa-inbox-list-pane #waInboxFilters {\n        grid-template-columns: repeat(2, minmax(0, 1fr));\n    }\n}\n\n@media (max-width: 380px) {\n    .wa-inbox-list-pane #waInboxChannels button,\n    .wa-inbox-list-pane #waInboxFilters button {\n        font-size: 9px;\n        padding-left: 6px;\n        padding-right: 6px;\n    }\n}\n
