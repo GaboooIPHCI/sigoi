@@ -350,6 +350,84 @@ function messenger_update_conversation_after_message(
     ]);
 }
 
+function messenger_referral_from_event(array $event): array
+{
+    $candidates = [];
+
+    if (is_array($event['referral'] ?? null)) {
+        $candidates[] = $event['referral'];
+    }
+
+    if (is_array($event['message']['referral'] ?? null)) {
+        $candidates[] = $event['message']['referral'];
+    }
+
+    if (is_array($event['postback']['referral'] ?? null)) {
+        $candidates[] = $event['postback']['referral'];
+    }
+
+    foreach ($candidates as $referral) {
+        $source = strtoupper(trim((string)($referral['source'] ?? '')));
+        $type = trim((string)($referral['type'] ?? ''));
+        $adId = trim((string)($referral['ad_id'] ?? ''));
+        $ref = trim((string)($referral['ref'] ?? ''));
+        $uri = trim((string)(
+            $referral['referer_uri']
+            ?? $referral['referrer_uri']
+            ?? ''
+        ));
+
+        if ($source !== '' || $type !== '' || $adId !== '' || $ref !== '' || $uri !== '') {
+            return [
+                'source' => messenger_clean_text($source, 40),
+                'type' => messenger_clean_text($type, 80),
+                'ad_id' => messenger_clean_text($adId, 120),
+                'ref' => messenger_clean_text($ref, 255),
+                'referer_uri' => preg_match('#^https?://#i', $uri) ? $uri : '',
+            ];
+        }
+    }
+
+    return [
+        'source' => '',
+        'type' => '',
+        'ad_id' => '',
+        'ref' => '',
+        'referer_uri' => '',
+    ];
+}
+
+function messenger_store_referral(PDO $pdo, int $conversationId, array $event): void
+{
+    if ($conversationId <= 0) return;
+
+    $referral = messenger_referral_from_event($event);
+
+    if (
+        $referral['source'] === ''
+        && $referral['type'] === ''
+        && $referral['ad_id'] === ''
+        && $referral['ref'] === ''
+        && $referral['referer_uri'] === ''
+    ) {
+        return;
+    }
+
+    $pdo->prepare("\n        UPDATE messenger_conversaciones\n        SET\n            origen_fuente = CASE WHEN :source <> '' THEN :source_value ELSE origen_fuente END,\n            origen_tipo = CASE WHEN :type <> '' THEN :type_value ELSE origen_tipo END,\n            origen_ad_id = CASE WHEN :ad_id <> '' THEN :ad_id_value ELSE origen_ad_id END,\n            origen_ref = CASE WHEN :ref <> '' THEN :ref_value ELSE origen_ref END,\n            origen_referer_uri = CASE WHEN :uri <> '' THEN :uri_value ELSE origen_referer_uri END\n        WHERE id = :id\n    ")->execute([
+        ':source' => $referral['source'],
+        ':source_value' => $referral['source'],
+        ':type' => $referral['type'],
+        ':type_value' => $referral['type'],
+        ':ad_id' => $referral['ad_id'],
+        ':ad_id_value' => $referral['ad_id'],
+        ':ref' => $referral['ref'],
+        ':ref_value' => $referral['ref'],
+        ':uri' => $referral['referer_uri'],
+        ':uri_value' => $referral['referer_uri'],
+        ':id' => $conversationId,
+    ]);
+}
+
 function messenger_process_message_event(PDO $pdo, array $event): void
 {
     $senderId = trim((string)($event['sender']['id'] ?? ''));
@@ -363,7 +441,24 @@ function messenger_process_message_event(PDO $pdo, array $event): void
         return;
     }
 
+    $configuredPageId = messenger_page_id();
+
     $isEcho = !empty($message['is_echo']);
+
+    /*
+     * Algunos eventos originados por la propia Página/Business Suite
+     * pueden llegar sin is_echo explícito dependiendo del flujo de
+     * control. Si el remitente es nuestra Page ID, lo tratamos como
+     * saliente igualmente.
+     */
+    if (
+        !$isEcho
+        && $configuredPageId !== ''
+        && hash_equals($configuredPageId, $senderId)
+        && $recipientId !== ''
+    ) {
+        $isEcho = true;
+    }
 
     $pageId = $isEcho ? $senderId : $recipientId;
     $psid = $isEcho ? $recipientId : $senderId;
@@ -371,8 +466,6 @@ function messenger_process_message_event(PDO $pdo, array $event): void
     if ($pageId === '' || $psid === '') {
         return;
     }
-
-    $configuredPageId = messenger_page_id();
 
     if (
         $configuredPageId !== ''
@@ -391,6 +484,8 @@ function messenger_process_message_event(PDO $pdo, array $event): void
     );
 
     $conversationId = (int)$conversation['id'];
+    messenger_store_referral($pdo, $conversationId, $event);
+
     $baseMid = trim((string)($message['mid'] ?? ''));
 
     if ($baseMid === '') {
@@ -428,7 +523,17 @@ function messenger_process_message_event(PDO $pdo, array $event): void
     }
 
     $direction = $isEcho ? 'saliente' : 'entrante';
-    $origin = $isEcho ? 'messenger_app' : 'cliente';
+
+    /*
+     * Los MID enviados por S.I.G.O.I. ya se resolvieron arriba.
+     * Para ecos externos:
+     * - app_id presente => automatización/app externa (Meta Business Suite)
+     * - sin app_id       => respuesta humana desde Messenger/Page Inbox
+     */
+    $echoAppId = trim((string)($message['app_id'] ?? ''));
+    $origin = $isEcho
+        ? ($echoAppId !== '' ? 'automatizacion' : 'messenger_app')
+        : 'cliente';
     $body = messenger_clean_text($message['text'] ?? '', 10000);
     $replyToMid = messenger_clean_text(
         $message['reply_to']['mid'] ?? '',
@@ -560,6 +665,206 @@ function messenger_process_message_event(PDO $pdo, array $event): void
     }
 }
 
+
+function messenger_graph_datetime(string $value): ?string
+{
+    $value = trim($value);
+    if ($value === '') return null;
+
+    try {
+        return (new DateTimeImmutable($value))
+            ->setTimezone(new DateTimeZone('America/Lima'))
+            ->format('Y-m-d H:i:s');
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function messenger_message_near_duplicate(
+    PDO $pdo,
+    int $conversationId,
+    string $direction,
+    string $body,
+    string $createdAt
+): bool {
+    if ($body === '') return false;
+
+    $stmt = $pdo->prepare("
+        SELECT id
+        FROM messenger_mensajes
+        WHERE conversacion_id = :conversation_id
+          AND direccion = :direction
+          AND contenido = :body
+          AND creado_en BETWEEN
+              DATE_SUB(:created_at_a, INTERVAL 4 SECOND)
+              AND DATE_ADD(:created_at_b, INTERVAL 4 SECOND)
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        ':conversation_id' => $conversationId,
+        ':direction' => $direction,
+        ':body' => $body,
+        ':created_at_a' => $createdAt,
+        ':created_at_b' => $createdAt,
+    ]);
+
+    return (bool)$stmt->fetchColumn();
+}
+
+function messenger_sync_conversation_history(
+    PDO $pdo,
+    array $conversation,
+    int $limit = 20
+): array {
+    $pageId = trim((string)($conversation['page_id'] ?? messenger_page_id()));
+    $psid = trim((string)($conversation['psid'] ?? ''));
+    $conversationId = (int)($conversation['id'] ?? 0);
+
+    if (
+        $conversationId <= 0
+        || $pageId === ''
+        || $psid === ''
+        || messenger_page_token() === ''
+        || messenger_api_version() === ''
+    ) {
+        return ['ok' => false, 'imported' => 0, 'error' => 'Sin datos suficientes para sincronizar el historial.'];
+    }
+
+    $limit = max(5, min(30, $limit));
+
+    $findQuery = http_build_query([
+        'platform' => 'messenger',
+        'user_id' => $psid,
+        'fields' => 'id',
+        'limit' => 1,
+    ]);
+
+    $find = messenger_graph_request(
+        $pageId . '/conversations?' . $findQuery,
+        'GET',
+        null,
+        12
+    );
+
+    if (!($find['ok'] ?? false)) {
+        return ['ok' => false, 'imported' => 0, 'error' => (string)($find['error'] ?? 'No se pudo localizar la conversación en Meta.')];
+    }
+
+    $remoteRows = (array)($find['data']['data'] ?? []);
+    $remoteConversationId = trim((string)($remoteRows[0]['id'] ?? ''));
+
+    if ($remoteConversationId === '') {
+        return ['ok' => true, 'imported' => 0, 'error' => ''];
+    }
+
+    $fields = 'messages.limit(' . $limit . '){id,created_time,from,to,message}';
+    $historyQuery = http_build_query(['fields' => $fields]);
+
+    $history = messenger_graph_request(
+        $remoteConversationId . '?' . $historyQuery,
+        'GET',
+        null,
+        15
+    );
+
+    if (!($history['ok'] ?? false)) {
+        return ['ok' => false, 'imported' => 0, 'error' => (string)($history['error'] ?? 'No se pudo leer el historial de Meta.')];
+    }
+
+    $messages = (array)($history['data']['messages']['data'] ?? []);
+    $messages = array_reverse($messages);
+    $imported = 0;
+
+    foreach ($messages as $remote) {
+        if (!is_array($remote)) continue;
+
+        $remoteId = trim((string)($remote['id'] ?? ''));
+        $createdAt = messenger_graph_datetime((string)($remote['created_time'] ?? ''));
+        $body = messenger_clean_text($remote['message'] ?? '', 10000);
+
+        if ($remoteId === '' || !$createdAt || $body === '') continue;
+
+        $exists = $pdo->prepare("SELECT id FROM messenger_mensajes WHERE mid = :mid LIMIT 1");
+        $exists->execute([':mid' => $remoteId]);
+        if ($exists->fetchColumn()) continue;
+
+        $from = is_array($remote['from'] ?? null) ? $remote['from'] : [];
+        $fromId = trim((string)($from['id'] ?? ''));
+        $direction = ($fromId !== '' && hash_equals($pageId, $fromId)) ? 'saliente' : 'entrante';
+
+        if (messenger_message_near_duplicate($pdo, $conversationId, $direction, $body, $createdAt)) {
+            continue;
+        }
+
+        /*
+         * Si el mensaje está en Meta pero nunca llegó como message_echo,
+         * Conversations API no expone de forma fiable si fue regla o humano.
+         * Lo conservamos como salida externa de Meta para no perder historial.
+         */
+        $origin = $direction === 'saliente' ? 'meta_sync' : 'cliente';
+
+        messenger_store_message(
+            $pdo,
+            $conversationId,
+            $remoteId,
+            $direction,
+            $origin,
+            'text',
+            $body,
+            null,
+            $createdAt
+        );
+
+        messenger_update_conversation_after_message(
+            $pdo,
+            $conversationId,
+            $remoteId,
+            $direction,
+            $origin,
+            'text',
+            $body,
+            $createdAt
+        );
+
+        $imported++;
+    }
+
+    return ['ok' => true, 'imported' => $imported, 'error' => ''];
+}
+
+function messenger_sync_recent_histories(PDO $pdo, int $conversationLimit = 5): array
+{
+    messenger_ensure_schema($pdo);
+    $conversationLimit = max(1, min(10, $conversationLimit));
+
+    $rows = $pdo->query("
+        SELECT *
+        FROM messenger_conversaciones
+        WHERE ultimo_mensaje_en >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+        ORDER BY ultimo_mensaje_en DESC
+        LIMIT " . (int)$conversationLimit
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $synced = 0;
+    $imported = 0;
+    $errors = 0;
+
+    foreach ($rows as $row) {
+        $result = messenger_sync_conversation_history($pdo, $row, 20);
+
+        if ($result['ok'] ?? false) {
+            $synced++;
+            $imported += (int)($result['imported'] ?? 0);
+        } else {
+            $errors++;
+            error_log('Messenger history sync: ' . (string)($result['error'] ?? 'Error desconocido'));
+        }
+    }
+
+    return ['synced' => $synced, 'imported' => $imported, 'errors' => $errors];
+}
+
 function messenger_process_postback_event(PDO $pdo, array $event): void
 {
     $senderId = trim((string)($event['sender']['id'] ?? ''));
@@ -588,6 +893,8 @@ function messenger_process_postback_event(PDO $pdo, array $event): void
         $senderId,
         $createdAt
     );
+
+    messenger_store_referral($pdo, (int)$conversation['id'], $event);
 
     $postback = (array)($event['postback'] ?? []);
 

@@ -3,7 +3,7 @@
 
     const runtime = window.SIGOI_MESSENGER_RUNTIME || {
         active: false,
-        mode: 'all'
+        mode: 'core'
     };
 
     window.SIGOI_MESSENGER_RUNTIME = runtime;
@@ -55,7 +55,14 @@
         busy: false,
         selectedFile: null,
         quickRows: [],
-        quickLoaded: false
+        quickLoaded: false,
+        hybridSelectedKey: '',
+        hybridMergedCache: [],
+        hybridCacheAt: 0,
+        lastConversationId: null,
+        lastConversationSignature: '',
+        metaSyncInFlight: new Set(),
+        metaSyncAt: new Map()
     };
 
     function escapeHtml(value) {
@@ -299,12 +306,60 @@
         return active?.dataset.waFilter || 'all';
     }
 
+
+    function setMessengerSyncState(loading, label) {
+        const target = $('waSyncState');
+        const line = target?.closest('.wa-sync-line');
+        const button = $('waManualRefreshBtn');
+
+        line?.classList.toggle('is-loading', !!loading);
+        button?.classList.toggle('is-loading', !!loading);
+
+        if (button) {
+            button.disabled = !!loading;
+        }
+
+        if (!target) return;
+
+        if (label) {
+            target.textContent = label;
+            return;
+        }
+
+        if (loading) {
+            target.textContent = 'Actualizando...';
+            return;
+        }
+
+        target.textContent = 'En vivo · '
+            + new Date().toLocaleTimeString('es-PE', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+    }
+
     function currentCoreChannel() {
         const active = document.querySelector(
             '#waInboxChannels [data-wa-channel].is-active'
         );
 
         return active?.dataset.waChannel || 'all';
+    }
+
+
+    function isHybridAllMode() {
+        return state.mode === 'all'
+            || runtime.mode === 'all'
+            || currentCoreChannel() === 'all';
+    }
+
+    function scheduleHybridAppend(delay) {
+        clearTimeout(state.hybridAppendTimer);
+        state.hybridAppendTimer = setTimeout(
+            () => appendMessengerToAll(),
+            Number(delay || 0)
+        );
     }
 
     function ensureChannelRow() {
@@ -408,6 +463,9 @@
                     : ''
             );
 
+        const isAdOrigin = String(row.origen_fuente || '').toUpperCase() === 'ADS'
+            || String(row.origen_ad_id || '').trim() !== '';
+
         return `
             <button
                 type="button"
@@ -440,6 +498,7 @@
 
                     <div class="wa-conversation-flags">
                         <span class="wa-conversation-channel is-messenger">Messenger</span>
+                        ${isAdOrigin ? '<span class="is-ad-origin">Anuncio</span>' : ''}
                         ${
                             Number(row.requiere_humano) === 1
                                 ? '<span class="is-pending">Pendiente</span>'
@@ -504,50 +563,387 @@
         }
     }
 
+    async function fetchCoreChannelRows(channel) {
+        const qs = new URLSearchParams({
+            q: currentQuery(),
+            filter: currentFilter()
+        });
+
+        const response = await fetch(
+            'modules/' + channel + '/inbox-list.php?' + qs.toString(),
+            {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            }
+        );
+
+        let data;
+
+        try {
+            data = await response.json();
+        } catch (_) {
+            return [];
+        }
+
+        if (!response.ok || !data.success) {
+            return [];
+        }
+
+        const rows = Array.isArray(data.conversaciones)
+            ? data.conversaciones
+            : [];
+
+        return rows.map(row => Object.assign({}, row, {
+            canal: channel
+        }));
+    }
+
+    function hybridConversationName(row, channel) {
+        const custom = String(row?.nombre_personalizado || '').trim();
+        const contact = String(row?.nombre_contacto || '').trim();
+
+        if (custom) return custom;
+        if (contact) return contact;
+
+        if (channel === 'instagram') {
+            const username = String(row?.username_whatsapp || '').trim();
+            return username
+                ? '@' + username.replace(/^@+/, '')
+                : 'Instagram ' + Number(row?.id || 0);
+        }
+
+        if (channel === 'whatsapp') {
+            return String(row?.telefono || '').trim()
+                || 'WhatsApp ' + Number(row?.id || 0);
+        }
+
+        return messengerName(row);
+    }
+
+    function coreRowHtml(row, channel, selected) {
+        const name = hybridConversationName(row, channel);
+        const search = currentQuery();
+        const preview = row.busqueda_coincidencia
+            ? 'Coincidencia: ' + row.busqueda_coincidencia
+            : (row.ultimo_mensaje_preview || '[Mensaje]');
+        const outgoing = row.ultimo_mensaje_direccion === 'saliente';
+        const icon = channel === 'instagram' ? 'IG' : 'W';
+        const label = channel === 'instagram' ? 'Instagram' : 'WhatsApp';
+
+        return `
+            <button
+                type="button"
+                class="wa-conversation-item ${selected ? 'is-selected' : ''} ${Number(row.no_leidos) > 0 ? 'has-unread' : ''}"
+                data-wa-conversation="${Number(row.id)}"
+                data-wa-channel="${channel}"
+                data-sigoi-hybrid-row="1"
+            >
+                <div class="wa-avatar wa-avatar--channel">
+                    ${escapeHtml(initials(name))}
+                    <span class="wa-channel-mark is-${channel}" title="${label}">${icon}</span>
+                </div>
+                <div class="wa-conversation-copy">
+                    <div class="wa-conversation-top">
+                        <strong>${highlight(name, search)}</strong>
+                        <time>${escapeHtml(formatDateTime(row.ultimo_mensaje_en, true))}</time>
+                    </div>
+                    <div class="wa-conversation-preview">
+                        <span>${outgoing ? 'Tú: ' : ''}${highlight(preview, search)}</span>
+                        ${Number(row.no_leidos) > 0 ? `<b>${Number(row.no_leidos) > 99 ? '99+' : Number(row.no_leidos)}</b>` : ''}
+                    </div>
+                    <div class="wa-conversation-flags">
+                        <span class="wa-conversation-channel is-${channel}">${label}</span>
+                        ${Number(row.requiere_humano) === 1 ? '<span class="is-pending">Pendiente</span>' : ''}
+                        ${row.asignado_nombre ? `<span>${escapeHtml(row.asignado_nombre)}</span>` : ''}
+                        ${row.estado === 'cerrada' ? '<span class="is-resolved">Resuelta</span>' : ''}
+                    </div>
+                </div>
+            </button>
+        `;
+    }
+
+    function hybridRowKey(channel, id) {
+        return String(channel || 'whatsapp') + ':' + Number(id || 0);
+    }
+
+    function domHybridRowKey(node) {
+        if (!node) return '';
+
+        const channel = node.dataset.waMessengerConversation
+            ? 'messenger'
+            : String(node.dataset.waChannel || 'whatsapp');
+
+        const id = Number(
+            node.dataset.waMessengerConversation
+            || node.dataset.waConversation
+            || 0
+        );
+
+        return hybridRowKey(channel, id);
+    }
+
+    function hybridItemSignature(item) {
+        const row = item?.row || {};
+
+        return JSON.stringify([
+            item?.channel || '',
+            Number(row.id || 0),
+            row.nombre_personalizado || '',
+            row.nombre_contacto || '',
+            row.telefono || '',
+            row.username_whatsapp || '',
+            row.psid || '',
+            row.estado || '',
+            Number(row.requiere_humano || 0),
+            Number(row.no_leidos || 0),
+            row.ultimo_mensaje_en || '',
+            row.ultimo_mensaje_direccion || '',
+            row.ultimo_mensaje_preview || '',
+            row.busqueda_coincidencia || row.match_preview || '',
+            row.asignado_nombre || '',
+            row.origen_fuente || '',
+            row.origen_ad_id || '',
+            row.origen_ref || ''
+        ]);
+    }
+
+    function createHybridNode(item, selected) {
+        const html = item.channel === 'messenger'
+            ? rowHtml(item.row, selected)
+            : coreRowHtml(item.row, item.channel, selected);
+
+        const holder = document.createElement('div');
+        holder.innerHTML = html.trim();
+
+        const node = holder.firstElementChild;
+        if (node) {
+            node.dataset.sigoiHybridSignature = hybridItemSignature(item);
+        }
+
+        return node;
+    }
+
+    function currentHybridSelectedKey(list) {
+        if (state.hybridSelectedKey) {
+            return state.hybridSelectedKey;
+        }
+
+        return domHybridRowKey(
+            list?.querySelector('.wa-conversation-item.is-selected')
+        );
+    }
+
+    function applyHybridSelection(list, selectedKey) {
+        if (!list) return;
+
+        list.querySelectorAll('.wa-conversation-item').forEach(node => {
+            node.classList.toggle(
+                'is-selected',
+                domHybridRowKey(node) === selectedKey
+            );
+        });
+    }
+
+    function syncHybridList(list, merged) {
+        if (!list) return;
+
+        const previousScrollTop = list.scrollTop;
+        const selectedKey = currentHybridSelectedKey(list);
+        const wantedKeys = new Set();
+        const existing = new Map();
+
+        list.querySelectorAll('.wa-conversation-item').forEach(node => {
+            const key = domHybridRowKey(node);
+            if (key) existing.set(key, node);
+        });
+
+        const desiredNodes = [];
+
+        merged.forEach(item => {
+            const key = hybridRowKey(item.channel, item.row.id);
+            wantedKeys.add(key);
+
+            const signature = hybridItemSignature(item);
+            const selected = key === selectedKey;
+            let node = existing.get(key) || null;
+
+            if (!node || node.dataset.sigoiHybridSignature !== signature) {
+                const replacement = createHybridNode(item, selected);
+                if (!replacement) return;
+
+                if (node && node.parentNode === list) {
+                    node.replaceWith(replacement);
+                }
+
+                node = replacement;
+                existing.set(key, node);
+            } else {
+                node.classList.toggle('is-selected', selected);
+            }
+
+            desiredNodes.push(node);
+        });
+
+        existing.forEach((node, key) => {
+            if (!wantedKeys.has(key) && node.parentNode === list) {
+                node.remove();
+            }
+        });
+
+        list.querySelectorAll('.wa-list-loading,.wa-list-empty').forEach(node => node.remove());
+
+        desiredNodes.forEach((node, index) => {
+            const current = list.children[index];
+            if (current !== node) {
+                list.insertBefore(node, current || null);
+            }
+        });
+
+        applyHybridSelection(list, selectedKey);
+        list.scrollTop = previousScrollTop;
+    }
+
+    function restoreHybridFromCache() {
+        if (!isHybridAllMode()) return;
+
+        const list = $('waConversationList');
+        const merged = Array.isArray(state.hybridMergedCache)
+            ? state.hybridMergedCache
+            : [];
+
+        if (!list || !merged.length) return;
+
+        syncHybridList(list, merged);
+        updateCombinedIndicators();
+        setAllFilterUi();
+    }
+
+    function restoreHybridAfterCorePaint() {
+        /*
+         * El click de WhatsApp/Instagram es procesado también por
+         * whatsapp.js. Ese controlador puede reconstruir la lista solo
+         * con los canales base. Restauramos la lista combinada desde
+         * memoria al terminar el mismo evento, sin esperar una consulta
+         * de red. Así Messenger no desaparece durante el cambio de chat.
+         */
+        queueMicrotask(() => {
+            restoreHybridFromCache();
+
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => restoreHybridFromCache());
+            }
+        });
+
+        scheduleHybridAppend(120);
+    }
+
+    function messengerConversationSignature(data) {
+        const c = data?.conversacion || {};
+        const messages = Array.isArray(data?.mensajes) ? data.mensajes : [];
+
+        return JSON.stringify({
+            id: Number(c.id || 0),
+            nombre: c.nombre_personalizado || c.nombre_contacto || '',
+            estado: c.estado || '',
+            pendiente: Number(c.requiere_humano || 0),
+            asignado: Number(c.asignado_a || 0),
+            notas: c.notas_contacto || '',
+            ultimo: c.ultimo_mensaje_en || '',
+            total: Number(c.total_mensajes || messages.length),
+            window: data?.ventana_24h?.active ? 1 : 0,
+            send: data?.send_enabled ? 1 : 0,
+            messages: messages.map(message => [
+                Number(message.id || 0),
+                message.estado || message.status || '',
+                message.direccion || '',
+                message.tipo || '',
+                message.creado_en || '',
+                message.contenido || '',
+                message.media_url || message.archivo_url || ''
+            ])
+        });
+    }
+
     async function appendMessengerToAll() {
         if (
             !state.allowed
-            || runtime.active
-            || currentCoreChannel() !== 'all'
+            || !isHybridAllMode()
         ) {
             return;
         }
 
+        if (state.hybridBusy) return;
+        state.hybridBusy = true;
+
         try {
-            const rows = await fetchMessengerRows();
+            const jobs = [];
 
-            const list = $('waConversationList');
-
-            if (!list) return;
-
-            list.querySelectorAll('.wa-messenger-row')
-                .forEach(node => node.remove());
-
-            if (
-                list.querySelector('.wa-list-loading')
-                || list.querySelector('.wa-list-empty')
-            ) {
-                if (!rows.length) {
-                    return;
-                }
-
-                list.innerHTML = '';
+            if (canWhatsApp) {
+                jobs.push(fetchCoreChannelRows('whatsapp'));
+            } else {
+                jobs.push(Promise.resolve([]));
             }
 
-            rows.forEach(row => {
-                list.insertAdjacentHTML(
-                    'beforeend',
-                    rowHtml(row, false)
-                );
+            if (canInstagram) {
+                jobs.push(fetchCoreChannelRows('instagram'));
+            } else {
+                jobs.push(Promise.resolve([]));
+            }
+
+            jobs.push(fetchMessengerRows());
+
+            const [whatsappRows, instagramRows, messengerRows] = await Promise.all(jobs);
+
+            // Conservamos Messenger en memoria para que el filtro cambie al instante.
+            state.rows = messengerRows;
+
+            const merged = [
+                ...whatsappRows.map(row => ({ row, channel: 'whatsapp' })),
+                ...instagramRows.map(row => ({ row, channel: 'instagram' })),
+                ...messengerRows.map(row => ({ row, channel: 'messenger' }))
+            ];
+
+            merged.sort((a, b) => {
+                const ad = parseDate(a.row.ultimo_mensaje_en)?.getTime() || 0;
+                const bd = parseDate(b.row.ultimo_mensaje_en)?.getTime() || 0;
+
+                if (bd !== ad) return bd - ad;
+
+                return Number(b.row.id || 0) - Number(a.row.id || 0);
             });
 
+            state.hybridMergedCache = merged;
+            state.hybridCacheAt = Date.now();
+
+            const list = $('waConversationList');
+            if (!list) return;
+
+            if (!merged.length) {
+                list.innerHTML = `
+                    <div class="wa-list-empty">
+                        <strong>No hay conversaciones</strong>
+                        <span>Prueba otro filtro o espera nuevos mensajes.</span>
+                    </div>
+                `;
+                updateCombinedIndicators();
+                return;
+            }
+
+            /*
+             * 5.6: sincronización incremental.
+             * Conservamos los nodos que no cambiaron, la selección y el
+             * scroll. Así el polling no reconstruye 80+ chats cada ciclo.
+             */
+            syncHybridList(list, merged);
             updateCombinedIndicators();
 
         } catch (_) {
             /*
-             * "Todos" sigue funcionando con WhatsApp/Instagram
-             * aunque Messenger tenga un problema temporal.
+             * Una falla temporal de un canal no debe bloquear
+             * la bandeja principal.
              */
+        } finally {
+            state.hybridBusy = false;
         }
     }
 
@@ -559,6 +955,19 @@
                 button.classList.toggle(
                     'is-active',
                     button.dataset.waChannel === 'messenger'
+                );
+            });
+    }
+
+
+    function setAllFilterUi() {
+        const row = ensureChannelRow();
+
+        row?.querySelectorAll('[data-wa-channel]')
+            .forEach(button => {
+                button.classList.toggle(
+                    'is-active',
+                    button.dataset.waChannel === 'all'
                 );
             });
     }
@@ -652,7 +1061,51 @@
         $('waContactEmpty')?.classList.remove('hidden');
         $('waContactView')?.classList.add('hidden');
 
+        const empty = $('waChatEmpty');
+        const title = empty?.querySelector('h2');
+        const copy = empty?.querySelector('p');
+        if (title) title.textContent = 'Selecciona una conversación';
+        if (copy) copy.textContent = 'Aquí podrás ver el historial completo y responder desde S.I.G.O.I.';
+
         state.selected = null;
+    }
+
+    function showMessengerSwitchingState() {
+        const list = $('waConversationList');
+
+        if (Array.isArray(state.rows) && state.rows.length) {
+            const exists = state.selectedId && state.rows.some(
+                row => Number(row.id) === Number(state.selectedId)
+            );
+
+            if (!exists) {
+                state.selectedId = Number(state.rows[0].id || 0) || null;
+            }
+
+            renderMessengerList();
+
+            if (
+                state.selected
+                && Number(state.selected?.conversacion?.id || 0) === Number(state.selectedId || 0)
+            ) {
+                renderConversation(state.selected, true);
+                return;
+            }
+        } else if (list) {
+            list.innerHTML = '<div class="wa-list-loading">Cargando Messenger...</div>';
+            if ($('waInboxCount')) $('waInboxCount').textContent = '…';
+        }
+
+        $('waChatEmpty')?.classList.remove('hidden');
+        $('waChatView')?.classList.add('hidden');
+        $('waContactEmpty')?.classList.remove('hidden');
+        $('waContactView')?.classList.add('hidden');
+
+        const empty = $('waChatEmpty');
+        const title = empty?.querySelector('h2');
+        const copy = empty?.querySelector('p');
+        if (title) title.textContent = 'Cargando Messenger...';
+        if (copy) copy.textContent = 'Actualizando conversaciones del canal.';
     }
 
     function limaGreeting(now = new Date()) {
@@ -919,7 +1372,11 @@
 
         return `
             <div class="wa-message-row ${incoming ? 'is-incoming' : 'is-outgoing'}">
-                <article class="wa-message-bubble ${message.origen === 'messenger_app' ? 'is-messenger' : ''}">
+                <article class="wa-message-bubble ${
+                    message.origen === 'automatizacion'
+                        ? 'is-auto'
+                        : (['messenger_app', 'meta_sync'].includes(message.origen) ? 'is-messenger' : '')
+                }">
                     ${
                         !incoming
                             ? `<div class="wa-message-origin">${escapeHtml(message.origen_label || 'S.I.G.O.I.')}</div>`
@@ -1095,7 +1552,39 @@
                 c.notas_contacto || '';
         }
 
-        $('waOriginSection')?.classList.add('hidden');
+        const referralSource = String(c.origen_fuente || '').toUpperCase();
+        const referralAdId = String(c.origen_ad_id || '').trim();
+        const referralRef = String(c.origen_ref || '').trim();
+        const referralUri = String(c.origen_referer_uri || '').trim();
+        const isAdOrigin = referralSource === 'ADS' || referralAdId !== '';
+
+        if ($('waOriginSection')) {
+            $('waOriginSection').classList.toggle('hidden', !isAdOrigin);
+        }
+
+        if (isAdOrigin) {
+            $('waOriginImage')?.classList.add('hidden');
+
+            if ($('waOriginTitle')) {
+                $('waOriginTitle').textContent = 'Anuncio de Meta';
+            }
+
+            if ($('waOriginMeta')) {
+                const details = ['Messenger'];
+                if (referralAdId) details.push('ID ' + referralAdId);
+                else if (referralRef) details.push(referralRef);
+                $('waOriginMeta').textContent = details.join(' · ');
+            }
+
+            if ($('waOriginLink')) {
+                const validUri = /^https?:\/\//i.test(referralUri);
+                $('waOriginLink').classList.toggle('hidden', !validUri);
+                if (validUri) {
+                    $('waOriginLink').href = referralUri;
+                    $('waOriginLink').textContent = 'Ver origen ↗';
+                }
+            }
+        }
 
         if ($('waDetailState')) {
             $('waDetailState').textContent =
@@ -1305,23 +1794,141 @@
             messagesBox.scrollTop = messagesBox.scrollHeight;
         }
 
-        renderMessengerList();
+        if (state.mode === 'all') {
+            state.hybridSelectedKey = hybridRowKey('messenger', state.selectedId);
+            applyHybridSelection($('waConversationList'), state.hybridSelectedKey);
+        } else {
+            renderMessengerList();
+        }
+    }
+
+    function applyMessengerConversationData(
+        id,
+        data,
+        preserveScroll
+    ) {
+        state.selectedId = Number(id);
+        storageSet(
+            storageKeys.messengerConversation,
+            state.selectedId
+        );
+
+        const signature = messengerConversationSignature(data);
+        const sameConversation = Number(state.lastConversationId) === Number(id);
+
+        if (
+            preserveScroll
+            && sameConversation
+            && signature === state.lastConversationSignature
+        ) {
+            state.selected = data;
+            return false;
+        }
+
+        state.lastConversationId = Number(id);
+        state.lastConversationSignature = signature;
+        renderConversation(data, preserveScroll);
+        return true;
+    }
+
+    function syncMessengerConversationInBackground(
+        id,
+        force = false
+    ) {
+        id = Number(id || 0);
+        if (!id) return;
+
+        const now = Date.now();
+        const last = Number(state.metaSyncAt.get(id) || 0);
+
+        /*
+         * La consulta a Meta es un respaldo para respuestas automáticas/
+         * ecos faltantes. No debe ejecutarse en cada polling ni bloquear UI.
+         */
+        if (!force && now - last < 20000) {
+            return;
+        }
+
+        if (state.metaSyncInFlight.has(id)) {
+            return;
+        }
+
+        state.metaSyncAt.set(id, now);
+        state.metaSyncInFlight.add(id);
+
+        messengerApi(
+            'conversation.php?id='
+            + encodeURIComponent(id)
+            + '&sync_meta=1'
+        )
+            .then(data => {
+                if (Number(state.selectedId) !== id) {
+                    return;
+                }
+
+                applyMessengerConversationData(
+                    id,
+                    data,
+                    true
+                );
+
+                if (Number(data?.history_sync?.imported || 0) > 0) {
+                    scheduleHybridAppend(0);
+                }
+            })
+            .catch(() => {
+                /* Una falla de Meta nunca debe bloquear el chat local. */
+            })
+            .finally(() => {
+                state.metaSyncInFlight.delete(id);
+            });
     }
 
     async function loadMessengerConversation(
         id,
-        preserveScroll
+        preserveScroll,
+        options
     ) {
         if (!id) return;
 
+        options = options || {};
+
+        /* Primero BD local: no hace ninguna llamada a Graph API. */
         const data = await messengerApi(
             'conversation.php?id='
             + encodeURIComponent(id)
+            + '&sync_meta=0'
         );
 
-        state.selectedId = Number(id);
+        applyMessengerConversationData(
+            id,
+            data,
+            preserveScroll
+        );
 
-        renderConversation(data, preserveScroll);
+        if (options.syncMeta !== false) {
+            syncMessengerConversationInBackground(
+                id,
+                !!options.forceMetaSync
+            );
+        }
+    }
+
+    async function refreshMessengerContext(preserveSelection = true) {
+        if (state.mode === 'all') {
+            await appendMessengerToAll();
+
+            if (runtime.active && state.selectedId) {
+                await loadMessengerConversation(
+                    state.selectedId,
+                    true
+                );
+            }
+
+            return;
+        }
+
+        await loadMessengerList(preserveSelection);
     }
 
     async function conversationAction(
@@ -1341,7 +1948,7 @@
 
             toast(data.message || 'Actualizado.');
 
-            await loadMessengerList(true);
+            await refreshMessengerContext(true);
 
         } catch (error) {
             toast(error.message, true);
@@ -1374,7 +1981,7 @@
                 data.message || 'Contacto guardado.'
             );
 
-            await loadMessengerList(true);
+            await refreshMessengerContext(true);
 
         } catch (error) {
             toast(error.message, true);
@@ -1472,7 +2079,7 @@
                 $('waComposerText').value = '';
             }
 
-            await loadMessengerList(true);
+            await refreshMessengerContext(true);
 
         } catch (error) {
             toast(error.message, true);
@@ -1488,12 +2095,17 @@
     }
 
     function activateMessenger(preserveSelection = false) {
+        state.hybridSelectedKey = '';
         state.mode = 'messenger';
         runtime.active = true;
         runtime.mode = 'messenger';
         storageSet(storageKeys.channel, 'messenger');
 
         setMessengerFilterUi();
+
+        // Cambio visual inmediato: nunca dejamos el chat del canal anterior
+        // mientras esperamos la petición HTTP de Messenger.
+        showMessengerSwitchingState();
 
         loadMessengerList(!!preserveSelection);
     }
@@ -1504,27 +2116,8 @@
         runtime.mode = 'all';
         storageSet(storageKeys.channel, 'all');
 
-        const row = ensureChannelRow();
-        const coreChannel = canWhatsApp ? 'whatsapp' : 'instagram';
-        const coreButton = row?.querySelector(
-            `[data-wa-channel="${coreChannel}"]`
-        );
-
-        if (coreButton) {
-            coreButton.click();
-        }
-
-        setTimeout(function () {
-            row?.querySelectorAll('[data-wa-channel]')
-                .forEach(button => {
-                    button.classList.toggle(
-                        'is-active',
-                        button.dataset.waChannel === 'all'
-                    );
-                });
-
-            appendMessengerToAll();
-        }, 30);
+        setAllFilterUi();
+        scheduleHybridAppend(0);
     }
 
     function deactivateMessenger(mode) {
@@ -1548,6 +2141,22 @@
         try {
             await messengerApi('queue-process.php');
         } catch (_) {}
+    }
+
+
+    async function manualRefreshMessenger() {
+        if (!state.allowed || state.busy) return;
+
+        setMessengerSyncState(true);
+
+        try {
+            await processQueue();
+            await loadMessengerList(true);
+        } catch (error) {
+            toast(error.message, true);
+        } finally {
+            setMessengerSyncState(false);
+        }
     }
 
     async function refreshCapabilities() {
@@ -1588,25 +2197,32 @@
                 event.preventDefault();
                 event.stopImmediatePropagation();
 
-                activateMessenger();
-
                 state.selectedId = Number(
                     messengerRow.dataset
                         .waMessengerConversation
                 );
+                state.hybridSelectedKey = hybridRowKey('messenger', state.selectedId);
+
                 storageSet(
                     storageKeys.messengerConversation,
                     state.selectedId
                 );
 
-                renderMessengerList();
-
-                loadMessengerConversation(
-                    state.selectedId,
-                    false
-                ).catch(error => {
-                    toast(error.message, true);
-                });
+                if (isHybridAllMode()) {
+                    state.mode = 'all';
+                    runtime.active = true;
+                    runtime.mode = 'all';
+                    storageSet(storageKeys.channel, 'all');
+                    setAllFilterUi();
+                    applyHybridSelection($('waConversationList'), state.hybridSelectedKey);
+                    loadMessengerConversation(
+                        state.selectedId,
+                        false
+                    );
+                    scheduleHybridAppend(80);
+                } else {
+                    activateMessenger(true);
+                }
 
                 return;
             }
@@ -1626,11 +2242,7 @@
                     return;
                 }
 
-                if (
-                    channel === 'all'
-                    && !(canWhatsApp && canInstagram)
-                    && (canWhatsApp || canInstagram)
-                ) {
+                if (channel === 'all') {
                     event.preventDefault();
                     event.stopImmediatePropagation();
                     activateHybridAll();
@@ -1650,14 +2262,42 @@
                 '[data-wa-conversation]:not([data-wa-messenger-conversation])'
             );
 
+            if (coreConversation) {
+                state.hybridSelectedKey = domHybridRowKey(coreConversation);
+            }
+
             if (coreConversation && runtime.active) {
+                const wasAll = state.mode === 'all';
+
                 deactivateMessenger(
-                    coreConversation.dataset.waChannel || 'all'
+                    wasAll
+                        ? 'all'
+                        : (coreConversation.dataset.waChannel || 'all')
                 );
+
+                if (wasAll) {
+                    setAllFilterUi();
+                    applyHybridSelection($('waConversationList'), state.hybridSelectedKey);
+                    restoreHybridAfterCorePaint();
+                }
+
                 return;
             }
 
+            if (coreConversation && runtime.mode === 'all') {
+                applyHybridSelection($('waConversationList'), state.hybridSelectedKey);
+                restoreHybridAfterCorePaint();
+            }
+
             if (!runtime.active) {
+                if (
+                    isHybridAllMode()
+                    && event.target.closest('#waManualRefreshBtn')
+                ) {
+                    scheduleHybridAppend(120);
+                    setTimeout(() => scheduleHybridAppend(0), 500);
+                }
+
                 return;
             }
 
@@ -1665,9 +2305,25 @@
                 event.preventDefault();
                 event.stopImmediatePropagation();
 
-                processQueue()
-                    .then(() => loadMessengerList(true))
-                    .catch(error => toast(error.message, true));
+                if (state.mode === 'all') {
+                    setMessengerSyncState(true);
+                    processQueue()
+                        .then(() => appendMessengerToAll())
+                        .then(() => {
+                            if (state.selectedId) {
+                                return loadMessengerConversation(
+                                    state.selectedId,
+                                    true,
+                                    { forceMetaSync: true }
+                                );
+                            }
+                        })
+                        .catch(error => toast(error.message, true))
+                        .finally(() => setMessengerSyncState(false));
+                } else {
+                    manualRefreshMessenger();
+                }
+
                 return;
             }
 
@@ -1706,16 +2362,6 @@
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 sendMessage();
-                return;
-            }
-
-            if (event.target.closest('#waManualRefreshBtn')) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-
-                processQueue()
-                    .then(() => loadMessengerList(true));
-
                 return;
             }
 
@@ -1832,6 +2478,14 @@
     document.addEventListener(
         'input',
         function (event) {
+            if (
+                event.target.matches('#waInboxSearch')
+                && isHybridAllMode()
+            ) {
+                scheduleHybridAppend(340);
+                return;
+            }
+
             if (!runtime.active) return;
 
             if (event.target.matches('#waQuickPickerSearch')) {
@@ -1859,10 +2513,7 @@
     document.addEventListener(
         'click',
         function (event) {
-            if (
-                !runtime.active
-                || !event.target.closest('#waInboxFilters')
-            ) {
+            if (!event.target.closest('#waInboxFilters')) {
                 return;
             }
 
@@ -1871,6 +2522,15 @@
             );
 
             if (!button) return;
+
+            if (isHybridAllMode()) {
+                scheduleHybridAppend(120);
+                return;
+            }
+
+            if (!runtime.active) {
+                return;
+            }
 
             event.preventDefault();
             event.stopImmediatePropagation();
@@ -1888,6 +2548,49 @@
         },
         true
     );
+
+
+    /*
+     * Analítica multicanal es la única analítica oficial del módulo.
+     * Interceptamos la pestaña interna para evitar mantener dos vistas.
+     */
+    document.addEventListener(
+        'click',
+        function (event) {
+            const analyticsTab = event.target.closest(
+                '[data-wa-tab="analytics"]'
+            );
+
+            if (!analyticsTab) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            window.location.href = 'analitica-multicanal.php';
+        },
+        true
+    );
+
+    function applyRequestedWhatsappTab() {
+        const params = new URLSearchParams(
+            window.location.search
+        );
+
+        const requested = String(
+            params.get('tab') || ''
+        ).toLowerCase();
+
+        if (!['inbox', 'automation', 'library'].includes(requested)) {
+            return;
+        }
+
+        const button = document.querySelector(
+            `[data-wa-tab="${requested}"]`
+        );
+
+        if (button && !button.classList.contains('is-active')) {
+            button.click();
+        }
+    }
 
     document.addEventListener(
         'keydown',
@@ -1914,19 +2617,30 @@
     async function tick() {
         if (!state.allowed) return;
 
+        if (isHybridAllMode()) {
+            await processQueue();
+            await appendMessengerToAll();
+
+            if (
+                runtime.active
+                && state.mode === 'all'
+                && state.selectedId
+            ) {
+                await loadMessengerConversation(
+                    state.selectedId,
+                    true
+                );
+            }
+
+            return;
+        }
+
         if (runtime.active) {
             await processQueue();
 
             if (!state.busy) {
                 await loadMessengerList(true);
             }
-
-            return;
-        }
-
-        if (currentCoreChannel() === 'all') {
-            await processQueue();
-            await appendMessengerToAll();
         }
     }
 
@@ -1938,12 +2652,16 @@
             return;
         }
 
+        applyRequestedWhatsappTab();
+
         try {
             const allowed = await refreshCapabilities();
 
             if (!allowed) {
                 return;
             }
+
+            installHybridObserver();
 
             const storedChannel = storageGet(storageKeys.channel);
             const storedConversation = Number(
@@ -1971,6 +2689,11 @@
                     '#waInboxChannels [data-wa-channel].is-active'
                 )
             ) {
+                state.mode = 'all';
+                runtime.active = false;
+                runtime.mode = 'all';
+                storageSet(storageKeys.channel, 'all');
+                setAllFilterUi();
                 await appendMessengerToAll();
             }
 
@@ -1993,6 +2716,38 @@
         } catch (error) {
             console.error('Messenger init:', error);
         }
+    }
+
+
+    function installHybridObserver() {
+        const list = $('waConversationList');
+
+        if (!list || state.hybridObserverInstalled) {
+            return;
+        }
+
+        const observer = new MutationObserver(function () {
+            if (!state.allowed || !isHybridAllMode() || state.hybridBusy) {
+                return;
+            }
+
+            const hasMessenger = !!list.querySelector(
+                '[data-wa-messenger-conversation]'
+            );
+
+            if (!hasMessenger) {
+                restoreHybridFromCache();
+                scheduleHybridAppend(120);
+            }
+        });
+
+        observer.observe(list, {
+            childList: true,
+            subtree: false
+        });
+
+        state.hybridObserverInstalled = true;
+        state.hybridObserver = observer;
     }
 
     if (document.readyState === 'loading') {

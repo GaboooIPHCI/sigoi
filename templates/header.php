@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/app_version.php';
+
+$sigoiVersion = defined('SIGOI_VERSION') ? (string)SIGOI_VERSION : 'dev';
 
 $currentPage = basename($_SERVER['PHP_SELF']);
 $pageAccessOverride = isset($SIGOI_ACCESS_PAGE) ? trim((string)$SIGOI_ACCESS_PAGE) : '';
@@ -97,11 +100,14 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S.I.G.O.I.</title>
     <link rel="shortcut icon" href="assets/img/favicon.ico" type="image/x-icon">
+    <style>
+        .sigoi-version-badge{display:inline-flex;align-items:center;margin-left:5px;padding:2px 6px;border-radius:999px;background:#f2f4f7;color:#667085;font-size:9px;font-weight:800;line-height:1;vertical-align:2px;letter-spacing:.01em}
+    </style>
 
     <link rel="stylesheet" href="assets/css/styles.css?v=4.8.1">
     <link rel="stylesheet" href="assets/css/sigoi-navigation.css?v=4.1">
     <?php if (in_array($currentPage, ['whatsapp.php', 'analitica-multicanal.php', 'usuarios.php'], true)): ?>
-        <link rel="stylesheet" href="assets/css/sigoi-messenger.css?v=5.1">
+        <link rel="stylesheet" href="assets/css/sigoi-messenger.css?v=<?= rawurlencode($sigoiVersion) ?>">
     <?php endif; ?>
 
     <?php if ($currentPage === 'campanias.php'): ?>
@@ -131,13 +137,13 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
         <link rel="stylesheet" href="assets/css/medicos.css?v=3.0">
     <?php endif; ?>
 
-    <?php if ($currentPage === 'whatsapp.php'): ?>
+    <?php if (in_array($currentPage, ['whatsapp.php', 'analitica-multicanal.php'], true)): ?>
         <link rel="stylesheet" href="assets/css/whatsapp.css?v=3.0">
     <?php endif; ?>
 
     <script src="assets/js/sigoi-navigation.js?v=4.1" defer></script>
     <?php if ($currentPage === 'whatsapp.php'): ?>
-        <script src="assets/js/sigoi-messenger-preload.js?v=5.0"></script>
+        <script src="assets/js/sigoi-messenger-preload.js?v=<?= rawurlencode($sigoiVersion) ?>"></script>
     <?php endif; ?>
 </head>
 <body data-role="<?= htmlspecialchars((string) $currentRole, ENT_QUOTES, 'UTF-8') ?>">
@@ -163,7 +169,7 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
 <header class="site-header">
     <div class="container site-header__inner">
         <a class="site-brand" href="<?= htmlspecialchars(auth_url(auth_first_allowed_page()), ENT_QUOTES, 'UTF-8') ?>" aria-label="Ir al inicio">
-            <span class="site-brand__title">S.I.G.O.I.</span>
+            <span class="site-brand__title">S.I.G.O.I.<span class="sigoi-version-badge">v<?= htmlspecialchars($sigoiVersion, ENT_QUOTES, 'UTF-8') ?></span></span>
             <small class="site-brand__subtitle">Sistema Integral de Gestión Operativa e Información</small>
         </a>
 
@@ -175,7 +181,7 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
                         <?php if (!auth_can_access_page('whatsapp.php')) continue; ?>
                         <?php $whatsappMainActive = in_array($currentPage, ['whatsapp.php', 'analitica-multicanal.php'], true); ?>
                         <a
-                            href="whatsapp.php"
+                            href="whatsapp.php?tab=inbox"
                             class="site-link <?= $whatsappMainActive ? 'is-active' : '' ?>"
                             <?= $whatsappMainActive ? 'aria-current="page"' : '' ?>
                         >WhatsApp</a>

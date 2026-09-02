@@ -131,34 +131,45 @@ try {
             continue;
         }
 
-        foreach ((array)($entry['messaging'] ?? []) as $eventIndex => $event) {
-            if (!is_array($event)) {
-                continue;
+        /*
+         * messaging = eventos que la app recibe con control normal.
+         * standby   = eventos observables cuando Meta Business Suite u
+         *             otra integración tiene control del hilo.
+         *
+         * El MID sigue siendo la clave de deduplicación, por lo que si
+         * Meta entrega el mismo mensaje en ambos bloques no se duplica.
+         */
+        foreach (['messaging', 'standby'] as $bucket) {
+            foreach ((array)($entry[$bucket] ?? []) as $eventIndex => $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+
+                $mid = trim((string)($event['message']['mid'] ?? ''));
+
+                if ($mid !== '') {
+                    $eventKey = 'mid:' . $mid;
+                } else {
+                    $eventKey = 'evt:' . hash(
+                        'sha256',
+                        json_encode([
+                            'entry' => $entry['id'] ?? '',
+                            'time' => $entry['time'] ?? '',
+                            'bucket' => $bucket,
+                            'event_index' => $eventIndex,
+                            'event' => $event,
+                        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    );
+                }
+
+                $insert->execute([
+                    ':event_key' => $eventKey,
+                    ':payload' => json_encode(
+                        $event,
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                    ),
+                ]);
             }
-
-            $mid = trim((string)($event['message']['mid'] ?? ''));
-
-            if ($mid !== '') {
-                $eventKey = 'mid:' . $mid;
-            } else {
-                $eventKey = 'evt:' . hash(
-                    'sha256',
-                    json_encode([
-                        'entry' => $entry['id'] ?? '',
-                        'time' => $entry['time'] ?? '',
-                        'event_index' => $eventIndex,
-                        'event' => $event,
-                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-                );
-            }
-
-            $insert->execute([
-                ':event_key' => $eventKey,
-                ':payload' => json_encode(
-                    $event,
-                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-                ),
-            ]);
         }
     }
 

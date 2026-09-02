@@ -607,6 +607,10 @@ function messenger_origin_label(array $row): string
         return 'Automático';
     }
 
+    if ($origin === 'meta_sync') {
+        return 'Meta / Página';
+    }
+
     return 'Cliente';
 }
 

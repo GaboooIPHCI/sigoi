@@ -7,6 +7,9 @@ require_once __DIR__ . '/config/messenger_schema.php';
 $permissions = auth_whatsapp_permissions();
 messenger_ensure_schema($pdo);
 $canAnalytics = !empty($permissions['analitica_ver']);
+$canInbox = !empty($permissions['bandeja_ver']);
+$canAutomation = !empty($permissions['automatizacion_ver']);
+$canLibrary = !empty($permissions['plantillas_ver']);
 $canWhatsApp = !empty($permissions['canal_whatsapp']);
 $canInstagram = !empty($permissions['canal_instagram']);
 $canMessenger = messenger_channel_permission_for_user(
@@ -26,13 +29,29 @@ if (!$canAnalytics) {
             <p>No tienes permiso para visualizar esta sección.</p>
         </section>
     <?php else: ?>
-        <section class="panel mc-hero">
-            <div>
+        <section class="panel mc-hero mc-hero--workspace">
+            <div class="mc-hero__copy">
                 <span class="dashboard-label">Centro de conversaciones</span>
                 <h1>Analítica multicanal</h1>
                 <p>Vista global de conversaciones, mensajes y tiempos de respuesta de los canales habilitados.</p>
             </div>
-            <div class="mc-period-caption" id="mcPeriodCaption">Últimos 30 días</div>
+
+            <div class="mc-hero__workspace-actions">
+                <nav class="wa-tabs mc-analytics-tabs" aria-label="Secciones de WhatsApp">
+                    <?php if ($canInbox): ?>
+                        <a class="wa-tab" href="whatsapp.php?tab=inbox">Bandeja</a>
+                    <?php endif; ?>
+                    <?php if ($canAutomation): ?>
+                        <a class="wa-tab" href="whatsapp.php?tab=automation">Automatización</a>
+                    <?php endif; ?>
+                    <?php if ($canLibrary): ?>
+                        <a class="wa-tab" href="whatsapp.php?tab=library">Plantillas y respuestas</a>
+                    <?php endif; ?>
+                    <a class="wa-tab is-active" href="analitica-multicanal.php" aria-current="page">Analítica</a>
+                </nav>
+
+                <div class="mc-period-caption" id="mcPeriodCaption">Últimos 30 días</div>
+            </div>
         </section>
 
         <section class="panel mc-filters">

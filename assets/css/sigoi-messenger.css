@@ -50,9 +50,391 @@
     }
 }
 
-@media (max-width: 480px) {
-    #waInboxChannels {
-        grid-template-columns: 1fr;
+
+
+/* ===== S.I.G.O.I. Messenger 5.2: bandeja y navegación ===== */
+.wa-inbox-list-pane #waInboxChannels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 0 14px 9px;
+    overflow: visible;
+}
+
+.wa-inbox-list-pane #waInboxChannels.is-single-channel {
+    grid-template-columns: 1fr;
+}
+
+.wa-inbox-list-pane #waInboxChannels button {
+    width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wa-inbox-list-pane #waInboxFilters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 0 14px 12px;
+    overflow: visible;
+}
+
+.wa-inbox-list-pane #waInboxFilters button {
+    width: 100%;
+    min-width: 0;
+    min-height: 31px;
+    padding: 6px 7px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wa-inbox-list-pane .wa-inbox-search {
+    margin-bottom: 11px;
+}
+
+/* Estado de sincronización coherente entre los tres canales. */
+.wa-sync-line.is-loading .wa-live-mini-dot {
+    animation: sigoi-messenger-pulse .8s ease-in-out infinite alternate;
+}
+
+@keyframes sigoi-messenger-pulse {
+    from { opacity: .35; transform: scale(.88); }
+    to { opacity: 1; transform: scale(1.08); }
+}
+
+/* Navegación interna de WhatsApp visible también desde Analítica. */
+.mc-workspace-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: max-content;
+    max-width: 100%;
+    padding: 5px;
+    margin: -2px 0 0;
+    border-radius: 13px;
+    background: #eef0f5;
+    overflow-x: auto;
+}
+
+.mc-workspace-nav a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 15px;
+    border-radius: 9px;
+    color: #596273;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.mc-workspace-nav a:hover {
+    color: #2e3748;
+    background: rgba(255,255,255,.55);
+}
+
+.mc-workspace-nav a.is-active {
+    color: #172033;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(16,24,40,.07);
+}
+
+@media (max-width: 720px) {
+    .wa-inbox-list-pane #waInboxChannels,
+    .wa-inbox-list-pane #waInboxFilters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .mc-workspace-nav {
+        width: 100%;
     }
 }
-\n\n/* ===== Pulido 5.1: filtros equilibrados y responsive ===== */\n.wa-inbox-list-pane #waInboxChannels {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n    gap: 6px;\n    padding: 0 14px 8px;\n    overflow: visible;\n}\n\n.wa-inbox-list-pane #waInboxChannels button {\n    width: 100%;\n    min-width: 0;\n    display: inline-flex;\n    align-items: center;\n    justify-content: center;\n    gap: 5px;\n    overflow: hidden;\n    text-overflow: ellipsis;\n}\n\n.wa-inbox-list-pane #waInboxFilters {\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n    gap: 6px;\n    padding: 0 14px 12px;\n    overflow: visible;\n}\n\n.wa-inbox-list-pane #waInboxFilters button {\n    width: 100%;\n    min-width: 0;\n    text-align: center;\n    overflow: hidden;\n    text-overflow: ellipsis;\n}\n\n.wa-inbox-list-pane .wa-inbox-search {\n    margin-bottom: 10px;\n}\n\n@media (max-width: 720px) {\n    .wa-inbox-list-pane #waInboxChannels,\n    .wa-inbox-list-pane #waInboxFilters {\n        grid-template-columns: repeat(2, minmax(0, 1fr));\n    }\n}\n\n@media (max-width: 380px) {\n    .wa-inbox-list-pane #waInboxChannels button,\n    .wa-inbox-list-pane #waInboxFilters button {\n        font-size: 9px;\n        padding-left: 6px;\n        padding-right: 6px;\n    }\n}\n
+
+@media (max-width: 380px) {
+    .wa-inbox-list-pane #waInboxChannels button,
+    .wa-inbox-list-pane #waInboxFilters button {
+        font-size: 9px;
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+}
+
+
+/* ===== Pulido 5.3: filtros compactos y diferenciados ===== */
+.wa-inbox-list-pane #waInboxChannels {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 0 14px 8px !important;
+    overflow: visible !important;
+}
+
+.wa-inbox-list-pane #waInboxChannels button {
+    width: 100%;
+    min-width: 0;
+    min-height: 31px;
+    padding: 5px 3px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    white-space: nowrap;
+    font-size: 9px !important;
+    font-weight: 850;
+    border: 1px solid #e4e7ec !important;
+    border-radius: 9px !important;
+    background: #fff !important;
+    color: #596273 !important;
+    overflow: hidden;
+}
+
+.wa-inbox-list-pane #waInboxChannels button.is-active {
+    border-color: #c4b5fd !important;
+    background: #f6f2ff !important;
+    color: #5b21b6 !important;
+    box-shadow: 0 0 0 2px rgba(109,40,217,.05);
+}
+
+.wa-inbox-list-pane #waInboxChannels .wa-channel-filter-icon {
+    width: 15px;
+    height: 15px;
+    min-width: 15px;
+    font-size: 7px;
+}
+
+.wa-inbox-list-pane #waInboxFilters {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 0 14px 10px !important;
+    overflow: visible !important;
+}
+
+.wa-inbox-list-pane #waInboxFilters button {
+    width: 100%;
+    min-width: 0;
+    min-height: 27px;
+    padding: 4px 2px !important;
+    border-radius: 7px !important;
+    background: #f3f4f6 !important;
+    color: #667085 !important;
+    font-size: 8.5px !important;
+    font-weight: 800;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+}
+
+.wa-inbox-list-pane #waInboxFilters button.is-active {
+    background: #ede9fe !important;
+    color: #6d28d9 !important;
+}
+
+@media (max-width: 340px) {
+    .wa-inbox-list-pane #waInboxChannels,
+    .wa-inbox-list-pane #waInboxFilters {
+        gap: 3px !important;
+        padding-left: 9px !important;
+        padding-right: 9px !important;
+    }
+
+    .wa-inbox-list-pane #waInboxChannels button {
+        font-size: 8px !important;
+    }
+
+    .wa-inbox-list-pane #waInboxFilters button {
+        font-size: 7.8px !important;
+    }
+}
+
+
+/* ===== 5.4.1 · navegación interna de Analítica igual al módulo WhatsApp ===== */
+.mc-hero--workspace {
+    align-items: center;
+}
+
+.mc-hero--workspace .mc-hero__copy {
+    min-width: 280px;
+    flex: 1 1 480px;
+}
+
+.mc-hero--workspace .mc-workspace-nav {
+    flex: 0 1 auto;
+    margin: 0;
+}
+
+.mc-hero--workspace .mc-period-caption {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 1100px) {
+    .mc-hero--workspace {
+        flex-wrap: wrap;
+    }
+
+    .mc-hero--workspace .mc-hero__copy {
+        flex: 1 1 100%;
+    }
+
+    .mc-hero--workspace .mc-workspace-nav {
+        order: 2;
+    }
+
+    .mc-hero--workspace .mc-period-caption {
+        order: 3;
+        margin-left: auto;
+    }
+}
+
+@media (max-width: 720px) {
+    .mc-hero--workspace .mc-workspace-nav {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .mc-hero--workspace .mc-period-caption {
+        margin-left: 0;
+    }
+}
+
+
+/* ===== 5.5 · Analítica usa exactamente el mismo patrón visual de tabs que WhatsApp ===== */
+.mc-hero--workspace {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.mc-hero--workspace .mc-hero__copy {
+    min-width: 0;
+    flex: 1 1 420px;
+}
+
+.mc-hero__workspace-actions {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    flex: 0 1 auto;
+}
+
+.mc-analytics-tabs {
+    margin: 0 !important;
+    overflow: visible !important;
+    flex: 0 1 auto;
+}
+
+.mc-analytics-tabs .wa-tab {
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.mc-hero__workspace-actions .mc-period-caption {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 1120px) {
+    .mc-hero--workspace {
+        flex-wrap: wrap;
+    }
+
+    .mc-hero--workspace .mc-hero__copy {
+        flex: 1 1 100%;
+    }
+
+    .mc-hero__workspace-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .mc-analytics-tabs {
+        flex-wrap: wrap;
+        width: auto !important;
+        max-width: calc(100% - 150px);
+    }
+}
+
+@media (max-width: 760px) {
+    .mc-hero__workspace-actions {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .mc-analytics-tabs {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    .mc-analytics-tabs .wa-tab {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}
+
+
+/* ===== 5.6 · Fluidez y legibilidad de la bandeja ===== */
+@media (min-width: 1180px) {
+    .whatsapp-page .wa-inbox-shell {
+        grid-template-columns: 350px minmax(480px, 1fr) 285px;
+    }
+}
+
+.wa-conversation-item {
+    contain: layout paint;
+    transition: background-color .12s ease, box-shadow .12s ease;
+}
+
+.wa-conversation-item.is-selected {
+    box-shadow: inset 3px 0 0 rgba(109, 40, 217, .28);
+}
+
+.wa-inbox-list-pane #waInboxChannels button,
+.wa-inbox-list-pane #waInboxFilters button {
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+
+.wa-inbox-list-pane #waInboxChannels button {
+    font-size: 8.6px !important;
+    letter-spacing: -.01em;
+}
+
+.wa-inbox-list-pane #waInboxChannels .wa-channel-filter-icon {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+}
+
+.wa-conversation-list {
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+}
+
+@media (max-width: 1179px) {
+    .wa-inbox-list-pane #waInboxChannels button {
+        font-size: 8px !important;
+    }
+}
+
+
+/* v1.5.8: indicador de procedencia por anuncio */
+.wa-conversation-flags .is-ad-origin {
+    background: #fff4e5;
+    color: #b45309;
+    border: 1px solid #fed7aa;
+}

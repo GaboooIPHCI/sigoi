@@ -143,6 +143,11 @@ function messenger_ensure_schema(PDO $pdo): void
             nombre_contacto VARCHAR(160) DEFAULT NULL,
             nombre_personalizado VARCHAR(160) DEFAULT NULL,
             foto_perfil_url TEXT DEFAULT NULL,
+            origen_fuente VARCHAR(40) DEFAULT NULL,
+            origen_tipo VARCHAR(80) DEFAULT NULL,
+            origen_ad_id VARCHAR(120) DEFAULT NULL,
+            origen_ref VARCHAR(255) DEFAULT NULL,
+            origen_referer_uri TEXT DEFAULT NULL,
             notas_contacto TEXT DEFAULT NULL,
             estado VARCHAR(30) NOT NULL DEFAULT 'abierta',
             requiere_humano TINYINT(1) NOT NULL DEFAULT 1,
@@ -243,6 +248,42 @@ function messenger_ensure_schema(PDO $pdo): void
           DEFAULT CHARSET=utf8mb4
           COLLATE=utf8mb4_unicode_ci
     ");
+
+    /*
+     * Datos de procedencia de Messenger. Meta solo los envía en algunos
+     * flujos (por ejemplo, click-to-Messenger ads o referencias m.me).
+     * Las columnas son idempotentes para instalaciones ya existentes.
+     */
+    messenger_schema_add_column(
+        $pdo,
+        'messenger_conversaciones',
+        'origen_fuente',
+        "VARCHAR(40) DEFAULT NULL AFTER foto_perfil_url"
+    );
+    messenger_schema_add_column(
+        $pdo,
+        'messenger_conversaciones',
+        'origen_tipo',
+        "VARCHAR(80) DEFAULT NULL AFTER origen_fuente"
+    );
+    messenger_schema_add_column(
+        $pdo,
+        'messenger_conversaciones',
+        'origen_ad_id',
+        "VARCHAR(120) DEFAULT NULL AFTER origen_tipo"
+    );
+    messenger_schema_add_column(
+        $pdo,
+        'messenger_conversaciones',
+        'origen_ref',
+        "VARCHAR(255) DEFAULT NULL AFTER origen_ad_id"
+    );
+    messenger_schema_add_column(
+        $pdo,
+        'messenger_conversaciones',
+        'origen_referer_uri',
+        "TEXT DEFAULT NULL AFTER origen_ref"
+    );
 
     messenger_ensure_permissions_schema($pdo);
 

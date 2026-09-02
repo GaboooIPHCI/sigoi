@@ -13,15 +13,19 @@ try {
     global $pdo;
 
     $result = messenger_process_queue($pdo, 50);
+    $history = messenger_sync_recent_histories($pdo, 5);
 
     fwrite(
         STDOUT,
         sprintf(
-            "[%s] Messenger: procesados=%d errores=%d pendientes=%d\n",
+            "[%s] Messenger: procesados=%d errores=%d pendientes=%d sync=%d importados=%d sync_errores=%d\n",
             date('Y-m-d H:i:s'),
             (int)$result['processed'],
             (int)$result['failed'],
-            (int)$result['pending']
+            (int)$result['pending'],
+            (int)$history['synced'],
+            (int)$history['imported'],
+            (int)$history['errors']
         )
     );
 

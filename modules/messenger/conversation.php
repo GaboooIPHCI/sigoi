@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/queue-worker-lib.php';
 
 auth_require_whatsapp_permission('bandeja_ver');
 
@@ -30,33 +30,59 @@ try {
     }
 
     /*
-     * Completa el nombre/foto de perfil de forma diferida.
-     * El webhook no se bloquea esperando esta consulta.
+     * 1.5.9: abrir un chat no debe esperar a Graph API.
+     * La vista normal devuelve primero lo almacenado en S.I.G.O.I. y
+     * la sincronización con Meta se solicita explícitamente en segundo plano.
      */
-    if (
-        empty($conversation['nombre_contacto'])
-        && !empty($conversation['psid'])
-    ) {
-        $profile = messenger_profile(
+    $syncMeta = isset($_GET['sync_meta'])
+        && (string)$_GET['sync_meta'] === '1';
+
+    $historySync = [
+        'ok' => true,
+        'imported' => 0,
+        'error' => '',
+        'attempted' => false,
+    ];
+
+    if ($syncMeta) {
+        $historySync = messenger_sync_conversation_history(
             $pdo,
-            (string)$conversation['psid']
+            $conversation,
+            20
         );
+        $historySync['attempted'] = true;
 
-        if ($profile) {
-            $pdo->prepare("
-                UPDATE messenger_conversaciones
-                SET
-                    nombre_contacto = :nombre,
-                    foto_perfil_url = :foto
-                WHERE id = :id
-            ")->execute([
-                ':nombre' => $profile['name'],
-                ':foto' => $profile['profile_pic'],
-                ':id' => $id,
-            ]);
-
+        if ((int)($historySync['imported'] ?? 0) > 0) {
             $conversation = messenger_conversation_row($pdo, $id)
                 ?: $conversation;
+        }
+
+        /* El perfil también usa Meta; nunca bloquea la apertura local. */
+        if (
+            empty($conversation['nombre_contacto'])
+            && !empty($conversation['psid'])
+        ) {
+            $profile = messenger_profile(
+                $pdo,
+                (string)$conversation['psid']
+            );
+
+            if ($profile) {
+                $pdo->prepare("
+                    UPDATE messenger_conversaciones
+                    SET
+                        nombre_contacto = :nombre,
+                        foto_perfil_url = :foto
+                    WHERE id = :id
+                ")->execute([
+                    ':nombre' => $profile['name'],
+                    ':foto' => $profile['profile_pic'],
+                    ':id' => $id,
+                ]);
+
+                $conversation = messenger_conversation_row($pdo, $id)
+                    ?: $conversation;
+            }
         }
     }
 
@@ -143,6 +169,7 @@ try {
     messenger_json(true, '', [
         'canal' => 'messenger',
         'conversacion' => $conversation,
+        'history_sync' => $historySync,
         'mensajes' => $messages,
         'ventana_24h' => $window,
         'send_enabled' => messenger_send_enabled(),
