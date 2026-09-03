@@ -5,7 +5,6 @@ require_once __DIR__ . '/templates/header.php';
 require_once __DIR__ . '/config/messenger_schema.php';
 
 $permissions = auth_whatsapp_permissions();
-messenger_ensure_schema($pdo);
 $canAnalytics = !empty($permissions['analitica_ver']);
 $canInbox = !empty($permissions['bandeja_ver']);
 $canAutomation = !empty($permissions['automatizacion_ver']);
@@ -37,7 +36,7 @@ if (!$canAnalytics) {
             </div>
 
             <div class="mc-hero__workspace-actions">
-                <nav class="wa-tabs mc-analytics-tabs" aria-label="Secciones de WhatsApp">
+                <nav class="wa-tabs mc-analytics-tabs" aria-label="Secciones del centro de conversaciones">
                     <?php if ($canInbox): ?>
                         <a class="wa-tab" href="whatsapp.php?tab=inbox">Bandeja</a>
                     <?php endif; ?>
@@ -232,7 +231,6 @@ if (!$canAnalytics) {
 <script>
 <?php
 $defaultAnalyticsChannel = 'all';
-
 if ($enabledChannelCount === 1) {
     if ($canMessenger) {
         $defaultAnalyticsChannel = 'messenger';
@@ -248,8 +246,8 @@ window.SIGOI_MC_DEFAULT_CHANNEL = <?= json_encode(
     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
 ) ?>;
 </script>
-<link rel="stylesheet" href="assets/css/analytics-multicanal.css?v=5.0">
-<script src="assets/js/analytics-multicanal.js?v=5.0"></script>
+<link rel="stylesheet" href="assets/css/analytics-multicanal.css?v=6.0">
+<script src="assets/js/analytics-multicanal.js?v=6.0"></script>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/templates/footer.php'; ?>

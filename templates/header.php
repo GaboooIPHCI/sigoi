@@ -80,6 +80,12 @@ $menuGroups = [
         'label' => 'Administración',
         'items' => [
             ['page' => 'usuarios.php', 'label' => 'Usuarios'],
+            [
+                'page' => 'estado-sistema.php',
+                'label' => 'Estado del sistema',
+                'access_page' => 'usuarios.php',
+                'admin_only' => true,
+            ],
             ['page' => 'medicos.php', 'label' => 'Médicos'],
             ['page' => 'horarios.php', 'label' => 'Horarios médicos'],
         ],
@@ -137,13 +143,17 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
         <link rel="stylesheet" href="assets/css/medicos.css?v=3.0">
     <?php endif; ?>
 
+    <?php if ($currentPage === 'estado-sistema.php'): ?>
+        <link rel="stylesheet" href="assets/css/system-health.css?v=<?= rawurlencode($sigoiVersion) ?>">
+    <?php endif; ?>
+
     <?php if (in_array($currentPage, ['whatsapp.php', 'analitica-multicanal.php'], true)): ?>
         <link rel="stylesheet" href="assets/css/whatsapp.css?v=3.0">
     <?php endif; ?>
 
     <script src="assets/js/sigoi-navigation.js?v=4.1" defer></script>
     <?php if ($currentPage === 'whatsapp.php'): ?>
-        <script src="assets/js/sigoi-messenger-preload.js?v=<?= rawurlencode($sigoiVersion) ?>"></script>
+        <script src="assets/js/sigoi-inbox-preload.js?v=<?= rawurlencode($sigoiVersion) ?>"></script>
     <?php endif; ?>
 </head>
 <body data-role="<?= htmlspecialchars((string) $currentRole, ENT_QUOTES, 'UTF-8') ?>">
@@ -192,6 +202,11 @@ if ($userLoginName !== '' && $userLoginName !== $userDisplayName) {
                     $visibleItems = array_filter(
                         $group['items'],
                         static function ($item) {
+                            if (!empty($item['admin_only'])) {
+                                if (!function_exists('auth_can_manage_users') || !auth_can_manage_users()) {
+                                    return false;
+                                }
+                            }
                             $accessPage = $item['access_page'] ?? $item['page'];
                             return auth_can_access_page($accessPage);
                         }

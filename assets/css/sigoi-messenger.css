@@ -438,3 +438,179 @@
     color: #b45309;
     border: 1px solid #fed7aa;
 }
+
+/* ===== v1.6.0 RC2 · Canales disponibles / permisos ===== */
+.permission-row--whatsapp .wa-permission-channel-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    gap: 9px;
+    padding: 9px 12px;
+    border: 1px solid #e4e7ec;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card:hover {
+    border-color: #cfd4dc;
+    box-shadow: 0 2px 8px rgba(16, 24, 40, .05);
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: #98a2b3;
+    box-shadow: 0 0 0 3px rgba(152, 162, 179, .12);
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card[data-sigoi-channel="whatsapp"]::after {
+    background: #25d366;
+    box-shadow: 0 0 0 3px rgba(37, 211, 102, .12);
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card[data-sigoi-channel="instagram"]::after {
+    background: #c13584;
+    box-shadow: 0 0 0 3px rgba(193, 53, 132, .12);
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card[data-sigoi-channel="messenger"]::after {
+    background: #1877f2;
+    box-shadow: 0 0 0 3px rgba(24, 119, 242, .12);
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card input {
+    flex: 0 0 auto;
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card span {
+    min-width: 0;
+    margin: 0;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card:has(input:checked) {
+    border-color: rgba(91, 33, 182, .25);
+    background: rgba(91, 33, 182, .035);
+}
+
+.permission-row--whatsapp .sigoi-channel-permission-card:has(input:disabled) {
+    cursor: default;
+    opacity: .68;
+}
+
+/* Elimina cualquier distintivo legado W / IG añadido por versiones anteriores. */
+.permission-row--whatsapp .wa-permission-channel-options label::before {
+    content: none !important;
+    display: none !important;
+}
+
+@media (max-width: 780px) {
+    .permission-row--whatsapp .wa-permission-channel-options {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ===== v1.6.0 RC2.1 · limpieza visual de permisos ===== */
+.permission-row--whatsapp .wa-permission-channel-options .sigoi-channel-icon,
+.permission-row--whatsapp .wa-permission-channel-options .wa-permission-channel-icon,
+.permission-row--whatsapp .wa-permission-channel-options [data-messenger-channel-badge] {
+    display: none !important;
+}
+
+.permission-row--whatsapp .wa-permission-channel-options label > span:first-of-type {
+    margin-left: 0 !important;
+}
+
+/* ===== v1.6.0 RC3 · permisos multicanal nativos ===== */
+.permission-row--whatsapp .wa-permission-channel-options label::before,
+.permission-row--whatsapp .wa-permission-channel-options label > span::before,
+.permission-row--whatsapp .wa-permission-channel-options label > span::after {
+    content: none !important;
+    display: none !important;
+}
+
+.permission-row--whatsapp .wa-permission-channel-options {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+}
+
+@media (max-width: 900px) {
+    .permission-row--whatsapp .wa-permission-channel-options {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* RC3: los filtros muestran el nombre completo; el distintivo queda solo en cada conversación. */
+.wa-inbox-list-pane #waInboxChannels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ===== v1.6.0 RC4 · rendimiento / carga progresiva ===== */
+.sigoi-inbox-load-more-wrap,
+.sigoi-message-history-more {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 10px;
+}
+
+.sigoi-inbox-load-more-wrap {
+    border-top: 1px solid rgba(152, 162, 179, .18);
+}
+
+.sigoi-inbox-load-more,
+.sigoi-message-history-more button {
+    appearance: none;
+    border: 1px solid rgba(91, 33, 182, .18);
+    border-radius: 999px;
+    background: #fff;
+    color: #5b21b6;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+.sigoi-inbox-load-more:hover,
+.sigoi-message-history-more button:hover {
+    background: rgba(91, 33, 182, .045);
+    border-color: rgba(91, 33, 182, .32);
+}
+
+.sigoi-inbox-load-more:active,
+.sigoi-message-history-more button:active {
+    transform: translateY(1px);
+}
+
+.sigoi-inbox-load-more-wrap small,
+.sigoi-message-history-more small {
+    color: #667085;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.sigoi-message-history-more {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-top: 8px;
+    padding-bottom: 10px;
+    background: linear-gradient(to bottom, rgba(248, 250, 252, .96), rgba(248, 250, 252, .72), transparent);
+}

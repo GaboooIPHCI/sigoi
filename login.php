@@ -29,13 +29,15 @@ function sigoi_safe_login_destination(string $next, string $fallback): string
     /*
      * Solo permitimos destinos internos. Un next con scheme, host,
      * credenciales o URL protocol-relative nunca se utiliza.
+     *
+     * PHP 7.4: evitamos str_starts_with(), disponible recién desde PHP 8.
      */
     if (
         !empty($parsed['scheme'])
         || !empty($parsed['host'])
         || !empty($parsed['user'])
         || !empty($parsed['pass'])
-        || str_starts_with($next, '//')
+        || strpos($next, '//') === 0
     ) {
         return $fallback;
     }

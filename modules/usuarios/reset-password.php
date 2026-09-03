@@ -20,5 +20,6 @@ try {
     auth_audit($pdo, 'password_actualizado', auth_user_id(), auth_username(), 'Cambio de contraseña para usuario ID: ' . $id);
     usuarios_json(true, 'Contraseña actualizada correctamente.');
 } catch (Throwable $e) {
-    usuarios_json(false, 'No se pudo actualizar la contraseña.', ['debug' => $e->getMessage()], 500);
+    error_log('Usuarios reset-password: ' . $e->getMessage());
+    usuarios_json(false, 'No se pudo actualizar la contraseña.', [], 500);
 }

@@ -307,9 +307,10 @@ function messenger_graph_request(
         . '/'
         . ltrim($path, '/');
 
-    $separator = strpos($url, '?') === false ? '?' : '&';
-    $url .= $separator . 'access_token=' . rawurlencode(messenger_page_token());
-
+    /*
+     * RC6: el token ya no viaja en la URL. Así evitamos que termine
+     * accidentalmente en logs, historiales o trazas del servidor.
+     */
     $ch = curl_init($url);
 
     $options = [
@@ -317,6 +318,7 @@ function messenger_graph_request(
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => max(5, $timeout),
         CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . messenger_page_token(),
             'Accept: application/json',
             'Content-Type: application/json',
         ],

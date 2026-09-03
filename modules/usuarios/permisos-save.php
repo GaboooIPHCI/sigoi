@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../../config/messenger_schema.php';
 auth_validate_csrf();
 
 try {
@@ -12,118 +13,56 @@ try {
     $whatsappPermisos = $data['whatsapp_permisos'] ?? null;
 
     if ($usuarioId <= 0) {
-        usuarios_json(
-            false,
-            'Usuario inválido.',
-            [],
-            422
-        );
+        usuarios_json(false, 'Usuario inválido.', [], 422);
     }
 
     if (!is_array($permisos)) {
-        usuarios_json(
-            false,
-            'Formato de permisos inválido.',
-            [],
-            422
-        );
+        usuarios_json(false, 'Formato de permisos inválido.', [], 422);
     }
 
     if ($whatsappPermisos !== null && !is_array($whatsappPermisos)) {
-        usuarios_json(
-            false,
-            'Formato de permisos de WhatsApp inválido.',
-            [],
-            422
-        );
+        usuarios_json(false, 'Formato de permisos de WhatsApp inválido.', [], 422);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Comprobar usuario
-    |--------------------------------------------------------------------------
-    */
-
     $stmtUsuario = $pdo->prepare("
-        SELECT
-            id,
-            nombre,
-            usuario,
-            rol
+        SELECT id, nombre, usuario, rol
         FROM usuarios_sistema
         WHERE id = :id
         LIMIT 1
     ");
-
-    $stmtUsuario->execute([
-        ':id' => $usuarioId
-    ]);
-
+    $stmtUsuario->execute([':id' => $usuarioId]);
     $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
 
     if (!$usuario) {
-        usuarios_json(
-            false,
-            'La cuenta seleccionada no existe.',
-            [],
-            404
-        );
+        usuarios_json(false, 'La cuenta seleccionada no existe.', [], 404);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Proteger Administrador
-    |--------------------------------------------------------------------------
-    | Los permisos del Admin no pueden modificarse.
-    |--------------------------------------------------------------------------
-    */
 
     if ($usuario['rol'] === 'admin') {
-        usuarios_json(
-            false,
-            'Los permisos de la cuenta Administrador están protegidos.',
-            [],
-            403
-        );
+        usuarios_json(false, 'Los permisos de la cuenta Administrador están protegidos.', [], 403);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Módulos disponibles
-    |--------------------------------------------------------------------------
-    */
-
     $stmtModulos = $pdo->query("
-        SELECT
-            id,
-            clave
+        SELECT id, clave
         FROM modulos_sistema
         WHERE activo = 1
     ");
-
     $modulosDisponibles = $stmtModulos->fetchAll(PDO::FETCH_ASSOC);
-
     $modulosMap = [];
-
     foreach ($modulosDisponibles as $modulo) {
         $modulosMap[(int) $modulo['id']] = $modulo['clave'];
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Permisos detallados de WhatsApp
-    |--------------------------------------------------------------------------
-    */
 
     $waNormalized = null;
 
     if (is_array($whatsappPermisos)) {
         auth_whatsapp_ensure_permissions_schema($pdo);
+        messenger_ensure_permissions_schema($pdo);
 
         $waNormalized = [
             'acceso' => !empty($whatsappPermisos['acceso']) ? 1 : 0,
             'canal_whatsapp' => array_key_exists('canal_whatsapp', $whatsappPermisos) ? (!empty($whatsappPermisos['canal_whatsapp']) ? 1 : 0) : 1,
             'canal_instagram' => array_key_exists('canal_instagram', $whatsappPermisos) ? (!empty($whatsappPermisos['canal_instagram']) ? 1 : 0) : 1,
+            'canal_messenger' => array_key_exists('canal_messenger', $whatsappPermisos) ? (!empty($whatsappPermisos['canal_messenger']) ? 1 : 0) : 0,
             'bandeja_ver' => !empty($whatsappPermisos['bandeja_ver']) ? 1 : 0,
             'bandeja_responder' => !empty($whatsappPermisos['bandeja_responder']) ? 1 : 0,
             'bandeja_gestionar' => !empty($whatsappPermisos['bandeja_gestionar']) ? 1 : 0,
@@ -156,30 +95,12 @@ try {
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Guardar permisos
-    |--------------------------------------------------------------------------
-    */
-
     $pdo->beginTransaction();
 
     $stmtPermiso = $pdo->prepare("
         INSERT INTO usuarios_permisos
-        (
-            usuario_id,
-            modulo_id,
-            puede_ver,
-            puede_modificar
-        )
-        VALUES
-        (
-            :usuario_id,
-            :modulo_id,
-            :puede_ver,
-            :puede_modificar
-        )
-
+        (usuario_id, modulo_id, puede_ver, puede_modificar)
+        VALUES (:usuario_id, :modulo_id, :puede_ver, :puede_modificar)
         ON DUPLICATE KEY UPDATE
             puede_ver = VALUES(puede_ver),
             puede_modificar = VALUES(puede_modificar)
@@ -188,29 +109,14 @@ try {
     foreach ($permisos as $permiso) {
         $moduloId = (int) ($permiso['modulo_id'] ?? 0);
 
-        if (
-            $moduloId <= 0
-            || !isset($modulosMap[$moduloId])
-        ) {
+        if ($moduloId <= 0 || !isset($modulosMap[$moduloId])) {
             continue;
         }
 
-        $puedeVer = !empty($permiso['puede_ver'])
-            ? 1
-            : 0;
+        $puedeVer = !empty($permiso['puede_ver']) ? 1 : 0;
+        $puedeModificar = !empty($permiso['puede_modificar']) ? 1 : 0;
 
-        $puedeModificar = !empty($permiso['puede_modificar'])
-            ? 1
-            : 0;
-
-        /*
-         * Para WhatsApp, el permiso general funciona como interruptor maestro.
-         * "Modificar" se deriva de las acciones internas que realmente escriben.
-         */
-        if (
-            $modulosMap[$moduloId] === 'whatsapp'
-            && is_array($waNormalized)
-        ) {
+        if ($modulosMap[$moduloId] === 'whatsapp' && is_array($waNormalized)) {
             $puedeVer = $waNormalized['acceso'];
             $puedeModificar = (
                 $puedeVer === 1
@@ -223,9 +129,6 @@ try {
             ) ? 1 : 0;
         }
 
-        /*
-         * Si no puede ver, tampoco puede modificar.
-         */
         if ($puedeVer === 0) {
             $puedeModificar = 0;
         }
@@ -245,6 +148,7 @@ try {
                 usuario_id,
                 canal_whatsapp,
                 canal_instagram,
+                canal_messenger,
                 bandeja_ver,
                 bandeja_responder,
                 bandeja_gestionar,
@@ -259,6 +163,7 @@ try {
                 :usuario_id,
                 :canal_whatsapp,
                 :canal_instagram,
+                :canal_messenger,
                 :bandeja_ver,
                 :bandeja_responder,
                 :bandeja_gestionar,
@@ -271,6 +176,7 @@ try {
             ON DUPLICATE KEY UPDATE
                 canal_whatsapp = VALUES(canal_whatsapp),
                 canal_instagram = VALUES(canal_instagram),
+                canal_messenger = VALUES(canal_messenger),
                 bandeja_ver = VALUES(bandeja_ver),
                 bandeja_responder = VALUES(bandeja_responder),
                 bandeja_gestionar = VALUES(bandeja_gestionar),
@@ -285,6 +191,7 @@ try {
             ':usuario_id' => $usuarioId,
             ':canal_whatsapp' => $waNormalized['canal_whatsapp'],
             ':canal_instagram' => $waNormalized['canal_instagram'],
+            ':canal_messenger' => $waNormalized['canal_messenger'],
             ':bandeja_ver' => $waNormalized['bandeja_ver'],
             ':bandeja_responder' => $waNormalized['bandeja_responder'],
             ':bandeja_gestionar' => $waNormalized['bandeja_gestionar'],
@@ -298,12 +205,6 @@ try {
 
     $pdo->commit();
 
-    /*
-    |--------------------------------------------------------------------------
-    | Auditoría
-    |--------------------------------------------------------------------------
-    */
-
     auth_audit(
         $pdo,
         'permisos_actualizados',
@@ -312,13 +213,9 @@ try {
         'Permisos actualizados para: ' . $usuario['usuario']
     );
 
-    usuarios_json(
-        true,
-        'Permisos guardados correctamente.'
-    );
+    usuarios_json(true, 'Permisos guardados correctamente.');
 
 } catch (Throwable $e) {
-
     if (
         isset($pdo)
         && $pdo instanceof PDO
@@ -327,12 +224,6 @@ try {
         $pdo->rollBack();
     }
 
-    usuarios_json(
-        false,
-        'No se pudieron guardar los permisos.',
-        [
-            'debug' => $e->getMessage()
-        ],
-        500
-    );
+    error_log('Usuarios permisos-save: ' . $e->getMessage());
+    usuarios_json(false, 'No se pudieron guardar los permisos.', [], 500);
 }
