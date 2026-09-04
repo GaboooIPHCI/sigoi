@@ -1,0 +1,32 @@
+S.I.G.O.I. v1.6.0 ESTABLE
+=========================
+
+Este paquete es acumulativo sobre RC6 y cierra la etapa de estabilización multicanal.
+
+CAMBIOS FINALES
+- Versión visible: 1.6.0.
+- Analítica multicanal optimizada para WhatsApp + Instagram + Messenger.
+- Corrección del borde de periodo: una respuesta dentro del periodo puede medir correctamente un mensaje entrante anterior al inicio del periodo si seguía pendiente de respuesta.
+- Menos consultas redundantes de INFORMATION_SCHEMA y agregados de analítica.
+- Timeout de 15 s en la carga de analítica para evitar estados de carga indefinidos.
+- Pruebas estáticas y workflow de GitHub Actions para PHP 7.4 + JavaScript.
+- Se mantienen todas las mejoras de RC1 a RC6: bandeja multicanal, permisos, paginación SQL, colas con backoff, Estado del sistema, seguridad y multimedia.
+
+NO CAMBIA
+- PHP sigue en 7.4.33.
+- Los cron de cPanel mantienen los mismos comandos/rutas.
+- No se modifica la política actual de contraseñas.
+- No se añaden etiquetas ni llamadas.
+- No existen métricas individuales por trabajador/agente.
+
+PRUEBA FINAL EN HOSTING
+1. Confirmar que la cabecera muestre v1.6.0.
+2. Usuarios > Permisos: WhatsApp, Instagram y Messenger visibles y guardables.
+3. Bandeja > Todos: abrir y responder al menos un chat de cada canal.
+4. Probar multimedia donde corresponda.
+5. Probar Cargar más conversaciones y Cargar mensajes anteriores.
+6. Analítica: probar Todos, cada canal y periodos 7/30/90 días.
+7. Administración > Estado del sistema: los tres cron deben mostrar actividad reciente.
+8. Hacer Ctrl+F5 una vez después de desplegar para renovar assets estáticos.
+
+Si todo lo anterior queda correcto, este es el paquete que debe consolidarse en GitHub como v1.6.0 estable.

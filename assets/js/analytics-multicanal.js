@@ -1,13 +1,15 @@
 (function () {
     'use strict';
 
-    const SIGOI_MC_BUILD = '4.1';
+    const SIGOI_MC_BUILD = '6.0';
+    const REQUEST_TIMEOUT_MS = 15000;
 
     const $ = (id) => document.getElementById(id);
     const state = {
         channel: window.SIGOI_MC_DEFAULT_CHANNEL || 'all',
         period: '30d',
-        loading: false
+        loading: false,
+        controller: null
     };
 
     function escapeHtml(value) {
@@ -33,12 +35,13 @@
 
     function setStatus(message, error) {
         setText('mcStatus', message);
-        const line = $('mcStatus')?.closest('.mc-status-line');
+        const status = $('mcStatus');
+        const line = status ? status.closest('.mc-status-line') : null;
         if (line) line.classList.toggle('is-error', !!error);
     }
 
     function periodLabel(filters) {
-        const period = filters?.period || state.period;
+        const period = filters && filters.period ? filters.period : state.period;
         const labels = {
             today: 'Hoy',
             yesterday: 'Ayer',
@@ -47,8 +50,8 @@
             '90d': 'Últimos 90 días',
             custom: 'Periodo personalizado'
         };
-        if (period === 'custom' && filters?.from && filters?.to) {
-            return `${filters.from} → ${filters.to}`;
+        if (period === 'custom' && filters && filters.from && filters.to) {
+            return filters.from + ' → ' + filters.to;
         }
         return labels[period] || labels['30d'];
     }
@@ -60,8 +63,8 @@
         });
 
         if (state.period === 'custom') {
-            const from = $('mcFrom')?.value || '';
-            const to = $('mcTo')?.value || '';
+            const from = $('mcFrom') ? $('mcFrom').value : '';
+            const to = $('mcTo') ? $('mcTo').value : '';
             if (!from || !to) {
                 setStatus('Selecciona las dos fechas del periodo personalizado.', true);
                 return null;
@@ -70,25 +73,46 @@
             params.set('to', to);
         }
 
-        const response = await fetch('modules/metricas/multicanal.php?' + params.toString(), {
-            headers: { 'Accept': 'application/json' },
-            cache: 'no-store'
-        });
-
-        const raw = await response.text();
-        let payload;
+        if (state.controller) {
+            state.controller.abort();
+        }
+        const controller = new AbortController();
+        state.controller = controller;
+        const timeout = window.setTimeout(function () {
+            controller.abort();
+        }, REQUEST_TIMEOUT_MS);
 
         try {
-            payload = JSON.parse(raw);
-        } catch (_) {
-            throw new Error(`El servidor no devolvió JSON válido (HTTP ${response.status}).`);
-        }
+            const response = await fetch('modules/metricas/multicanal.php?' + params.toString(), {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store',
+                signal: controller.signal
+            });
 
-        if (!response.ok || !payload.success) {
-            throw new Error(payload.message || 'No se pudo cargar la analítica.');
-        }
+            const raw = await response.text();
+            let payload;
+            try {
+                payload = JSON.parse(raw);
+            } catch (_) {
+                throw new Error('El servidor no devolvió JSON válido (HTTP ' + response.status + ').');
+            }
 
-        return payload.data || {};
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || 'No se pudo cargar la analítica.');
+            }
+
+            return payload.data || {};
+        } catch (error) {
+            if (error && error.name === 'AbortError') {
+                throw new Error('La analítica tardó demasiado en responder. Intenta actualizar nuevamente.');
+            }
+            throw error;
+        } finally {
+            window.clearTimeout(timeout);
+            if (state.controller === controller) {
+                state.controller = null;
+            }
+        }
     }
 
     function renderSummary(summary) {
@@ -97,95 +121,71 @@
         setText('mcAttended', Number(summary.atendidas || 0));
         setText('mcPending', Number(summary.pendientes || 0));
         setText('mcResolved', Number(summary.resueltas || 0));
-
         setText('mcIncoming', Number(summary.mensajes_entrantes || 0));
         setText('mcOutgoing', Number(summary.mensajes_salientes || 0));
         setText('mcRead', Number(summary.vistos || 0));
         setText('mcUnread', Number(summary.no_vistos || 0));
-        setText(
-            'mcReadRate',
-            summary.tasa_lectura_pct == null
-                ? '—'
-                : Number(summary.tasa_lectura_pct).toFixed(1) + '%'
-        );
-
+        setText('mcReadRate', summary.tasa_lectura_pct == null
+            ? '—'
+            : Number(summary.tasa_lectura_pct).toFixed(1) + '%');
         setText('mcFirstResponse', formatDuration(summary.primera_respuesta_promedio_seg));
         setText('mcAvgResponse', formatDuration(summary.respuesta_promedio_seg));
         setText('mcMedianResponse', formatDuration(summary.respuesta_mediana_seg));
 
         const firstSamples = Number(summary.muestras_primera_respuesta || 0);
         const responseSamples = Number(summary.muestras_respuesta || 0);
-
-        setText(
-            'mcFirstResponseSamples',
-            firstSamples
-                ? `${firstSamples} ${firstSamples === 1 ? 'conversación medida' : 'conversaciones medidas'}`
-                : 'Sin muestras suficientes'
-        );
-
-        setText(
-            'mcResponseSamples',
-            responseSamples
-                ? `${responseSamples} ${responseSamples === 1 ? 'respuesta medida' : 'respuestas medidas'}`
-                : 'Sin muestras suficientes'
-        );
+        setText('mcFirstResponseSamples', firstSamples
+            ? firstSamples + ' ' + (firstSamples === 1 ? 'conversación medida' : 'conversaciones medidas')
+            : 'Sin muestras suficientes');
+        setText('mcResponseSamples', responseSamples
+            ? responseSamples + ' ' + (responseSamples === 1 ? 'respuesta medida' : 'respuestas medidas')
+            : 'Sin muestras suficientes');
     }
 
     function renderDistribution(rows) {
         const box = $('mcDistribution');
         if (!box) return;
-
         if (!rows || !rows.length) {
             box.innerHTML = '<div class="mc-empty">Sin datos de canales para este periodo.</div>';
             return;
         }
 
-        box.innerHTML = rows.map(row => {
+        box.innerHTML = rows.map(function (row) {
             const pct = Number(row.distribucion_pct || 0);
             const channel = String(row.channel || '');
-            return `
-                <div class="mc-channel-row">
-                    <div class="mc-channel-row__top">
-                        <div>
-                            <span class="mc-channel-badge is-${escapeHtml(channel)}">${escapeHtml(row.label || channel)}</span>
-                            <small>${Number(row.conversaciones || 0)} conversaciones</small>
-                        </div>
-                        <strong>${pct.toFixed(1)}%</strong>
-                    </div>
-                    <div class="mc-progress"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>
-                    <div class="mc-channel-row__meta">
-                        <span>${Number(row.mensajes_entrantes || 0)} recibidos</span>
-                        <span>${Number(row.mensajes_salientes || 0)} enviados</span>
-                        <span>${row.tasa_lectura_pct == null ? 'Lectura —' : 'Lectura ' + Number(row.tasa_lectura_pct).toFixed(1) + '%'}</span>
-                    </div>
-                </div>`;
+            return '<div class="mc-channel-row">' +
+                '<div class="mc-channel-row__top"><div>' +
+                '<span class="mc-channel-badge is-' + escapeHtml(channel) + '">' + escapeHtml(row.label || channel) + '</span>' +
+                '<small>' + Number(row.conversaciones || 0) + ' conversaciones</small>' +
+                '</div><strong>' + pct.toFixed(1) + '%</strong></div>' +
+                '<div class="mc-progress"><i style="width:' + Math.max(0, Math.min(100, pct)) + '%"></i></div>' +
+                '<div class="mc-channel-row__meta">' +
+                '<span>' + Number(row.mensajes_entrantes || 0) + ' recibidos</span>' +
+                '<span>' + Number(row.mensajes_salientes || 0) + ' enviados</span>' +
+                '<span>' + (row.tasa_lectura_pct == null ? 'Lectura —' : 'Lectura ' + Number(row.tasa_lectura_pct).toFixed(1) + '%') + '</span>' +
+                '</div></div>';
         }).join('');
-
     }
 
     function renderDaily(rows) {
         const chart = $('mcDailyChart');
         if (!chart) return;
-
         if (!rows || !rows.length) {
             chart.innerHTML = '<div class="mc-empty">Sin actividad en el periodo seleccionado.</div>';
             setText('mcDailySummary', 'Sin actividad');
             return;
         }
 
-        const totals = rows.map(row => {
+        const totals = rows.map(function (row) {
             const total = row.total || {};
-            return Number(total.conversaciones || 0)
-                + Number(total.mensajes_entrantes || 0)
-                + Number(total.mensajes_salientes || 0);
+            return Number(total.conversaciones || 0) + Number(total.mensajes_entrantes || 0) + Number(total.mensajes_salientes || 0);
         });
-
-        const max = Math.max(...totals, 1);
+        const max = Math.max.apply(Math, totals.concat([1]));
         let conversations = 0;
         let incoming = 0;
         let outgoing = 0;
 
-        chart.innerHTML = rows.map((row, index) => {
+        chart.innerHTML = rows.map(function (row, index) {
             const total = row.total || {};
             const conv = Number(total.conversaciones || 0);
             const inc = Number(total.mensajes_entrantes || 0);
@@ -201,26 +201,20 @@
             const outPct = sum ? (out / sum) * 100 : 0;
             const showLabel = rows.length <= 14 || index % Math.ceil(rows.length / 12) === 0;
 
-            return `
-                <div class="mc-day-col" title="${escapeHtml(row.fecha)} · ${conv} conversaciones · ${inc} recibidos · ${out} enviados">
-                    <div class="mc-day-value">${sum || ''}</div>
-                    <div class="mc-day-stack" style="height:${height}%">
-                        <i class="is-conversations" style="height:${convPct}%"></i>
-                        <i class="is-incoming" style="height:${incPct}%"></i>
-                        <i class="is-outgoing" style="height:${outPct}%"></i>
-                    </div>
-                    <span>${showLabel ? escapeHtml(String(row.fecha).slice(5).replace('-', '/')) : ''}</span>
-                </div>`;
+            return '<div class="mc-day-col" title="' + escapeHtml(row.fecha) + ' · ' + conv + ' conversaciones · ' + inc + ' recibidos · ' + out + ' enviados">' +
+                '<div class="mc-day-value">' + (sum || '') + '</div>' +
+                '<div class="mc-day-stack" style="height:' + height + '%">' +
+                '<i class="is-conversations" style="height:' + convPct + '%"></i>' +
+                '<i class="is-incoming" style="height:' + incPct + '%"></i>' +
+                '<i class="is-outgoing" style="height:' + outPct + '%"></i>' +
+                '</div><span>' + (showLabel ? escapeHtml(String(row.fecha).slice(5).replace('-', '/')) : '') + '</span></div>';
         }).join('');
 
-        setText(
-            'mcDailySummary',
-            `${conversations} conversaciones · ${incoming} recibidos · ${outgoing} enviados`
-        );
+        setText('mcDailySummary', conversations + ' conversaciones · ' + incoming + ' recibidos · ' + outgoing + ' enviados');
     }
 
     function syncChannelButtons() {
-        document.querySelectorAll('[data-mc-channel]').forEach(button => {
+        document.querySelectorAll('[data-mc-channel]').forEach(function (button) {
             button.classList.toggle('is-active', button.dataset.mcChannel === state.channel);
         });
     }
@@ -228,7 +222,8 @@
     async function load() {
         if (state.loading) return;
         state.loading = true;
-        $('mcRefresh')?.classList.add('is-loading');
+        const refresh = $('mcRefresh');
+        if (refresh) refresh.classList.add('is-loading');
         const refreshLabel = document.querySelector('#mcRefresh .mc-refresh-label');
         if (refreshLabel) refreshLabel.textContent = 'Actualizando...';
         setStatus('Actualizando analítica...', false);
@@ -236,36 +231,27 @@
         try {
             const data = await fetchAnalytics();
             if (!data) return;
-
             renderSummary(data.summary || {});
             renderDistribution(data.by_channel || []);
             renderDaily(data.daily || []);
-
             const filters = data.filters || {};
             setText('mcPeriodCaption', periodLabel(filters));
-
-            const availableNames = (data.available_channels || [])
-                .map(row => row.label)
-                .join(' + ');
-
-            setStatus(
-                availableNames
-                    ? `Datos cargados: ${availableNames}.`
-                    : 'Datos cargados.',
-                false
-            );
+            const availableNames = (data.available_channels || []).map(function (row) {
+                return row.label;
+            }).join(' + ');
+            setStatus(availableNames ? 'Datos cargados: ' + availableNames + '.' : 'Datos cargados.', false);
         } catch (error) {
-            setStatus(error.message || 'No se pudo cargar la analítica.', true);
+            setStatus(error && error.message ? error.message : 'No se pudo cargar la analítica.', true);
         } finally {
             state.loading = false;
-            $('mcRefresh')?.classList.remove('is-loading');
-            const refreshLabel = document.querySelector('#mcRefresh .mc-refresh-label');
+            if (refresh) refresh.classList.remove('is-loading');
             if (refreshLabel) refreshLabel.textContent = 'Actualizar';
         }
     }
 
-    document.addEventListener('click', event => {
-        const channel = event.target.closest('[data-mc-channel]');
+    document.addEventListener('click', function (event) {
+        const target = event.target;
+        const channel = target && target.closest ? target.closest('[data-mc-channel]') : null;
         if (channel) {
             state.channel = channel.dataset.mcChannel || 'all';
             syncChannelButtons();
@@ -273,15 +259,19 @@
         }
     });
 
-    $('mcPeriod')?.addEventListener('change', event => {
-        state.period = event.target.value || '30d';
-        $('mcCustomRange')?.classList.toggle('hidden', state.period !== 'custom');
-        if (state.period !== 'custom') load();
-    });
-
-    $('mcApplyCustom')?.addEventListener('click', load);
-    $('mcRefresh')?.addEventListener('click', load);
+    if ($('mcPeriod')) {
+        $('mcPeriod').addEventListener('change', function (event) {
+            state.period = event.target.value || '30d';
+            const customRange = $('mcCustomRange');
+            if (customRange) customRange.classList.toggle('hidden', state.period !== 'custom');
+            if (state.period !== 'custom') load();
+        });
+    }
+    if ($('mcApplyCustom')) $('mcApplyCustom').addEventListener('click', load);
+    if ($('mcRefresh')) $('mcRefresh').addEventListener('click', load);
 
     syncChannelButtons();
     load();
+
+    window.SIGOI_MC_BUILD = SIGOI_MC_BUILD;
 })();

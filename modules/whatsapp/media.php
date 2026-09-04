@@ -29,6 +29,7 @@ try {
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . filesize($local));
         header('Cache-Control: private, max-age=3600');
+        header('X-Content-Type-Options: nosniff');
         $inline = strpos($mime, 'image/') === 0 || strpos($mime, 'audio/') === 0 || strpos($mime, 'video/') === 0 || $mime === 'application/pdf';
         header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $safeFilename . '"');
         readfile($local);
@@ -41,35 +42,82 @@ try {
         exit('El archivo ya no está disponible.');
     }
 
+    /*
+     * RC6: el archivo remoto se descarga a un temporal privado en disco.
+     * Antes CURLOPT_RETURNTRANSFER cargaba todo el archivo en memoria PHP.
+     */
+    $tmpDir = dirname(__DIR__, 2) . '/storage/whatsapp/tmp';
+    if (!is_dir($tmpDir) && !@mkdir($tmpDir, 0750, true) && !is_dir($tmpDir)) {
+        http_response_code(500);
+        exit('No se pudo preparar el archivo.');
+    }
+    $tmp = @tempnam($tmpDir, 'wa_media_');
+    if (!is_string($tmp) || $tmp === '') {
+        http_response_code(500);
+        exit('No se pudo preparar el archivo.');
+    }
+    register_shutdown_function(static function () use ($tmp): void {
+        if (is_file($tmp)) @unlink($tmp);
+    });
+
+    $fp = @fopen($tmp, 'wb');
+    if (!$fp) {
+        @unlink($tmp);
+        http_response_code(500);
+        exit('No se pudo preparar el archivo.');
+    }
+
+    $maxBytes = 50 * 1024 * 1024;
+    $tooLarge = false;
     $ch = curl_init($url);
     curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FILE => $fp,
         CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 3,
         CURLOPT_CONNECTTIMEOUT => 6,
-        CURLOPT_TIMEOUT => 40,
+        CURLOPT_TIMEOUT => 60,
         CURLOPT_HTTPHEADER => [
             'X-API-Key: ' . WHATSAPP_YCLOUD_API_KEY,
         ],
+        CURLOPT_NOPROGRESS => false,
+        CURLOPT_XFERINFOFUNCTION => static function (
+            $resource,
+            float $downloadSize,
+            float $downloaded,
+            float $uploadSize,
+            float $uploaded
+        ) use ($maxBytes, &$tooLarge): int {
+            if ($downloadSize > $maxBytes || $downloaded > $maxBytes) {
+                $tooLarge = true;
+                return 1;
+            }
+            return 0;
+        },
     ]);
-    $raw = curl_exec($ch);
+    $ok = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $remoteType = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
     curl_close($ch);
+    fclose($fp);
 
-    if ($raw === false || $code < 200 || $code >= 300) {
-        http_response_code(404);
-        exit('El archivo ya no está disponible.');
+    $size = is_file($tmp) ? (int)filesize($tmp) : 0;
+    if (!$ok || $tooLarge || $code < 200 || $code >= 300 || $size <= 0 || $size > $maxBytes) {
+        @unlink($tmp);
+        http_response_code($tooLarge ? 413 : 404);
+        exit($tooLarge ? 'El archivo supera el límite seguro de visualización.' : 'El archivo ya no está disponible.');
     }
 
     if ($remoteType !== '') {
         $mime = trim(explode(';', $remoteType)[0]);
     }
     header('Content-Type: ' . $mime);
-    header('Content-Length: ' . strlen((string)$raw));
+    header('Content-Length: ' . $size);
     header('Cache-Control: private, max-age=900');
+    header('X-Content-Type-Options: nosniff');
     $inline = strpos($mime, 'image/') === 0 || strpos($mime, 'audio/') === 0 || strpos($mime, 'video/') === 0 || $mime === 'application/pdf';
     header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $safeFilename . '"');
-    echo $raw;
+    readfile($tmp);
+    @unlink($tmp);
 } catch (Throwable $e) {
     error_log('WhatsApp media: ' . $e->getMessage());
     http_response_code(500);

@@ -60,7 +60,7 @@ try {
         ],
         'whatsapp' => [
             'clave' => 'whatsapp',
-            'nombre' => 'WhatsApp',
+            'nombre' => 'Conversaciones',
             'modulos' => [],
         ],
         'analitica' => [
@@ -82,10 +82,8 @@ try {
 
     foreach ($modulos as $modulo) {
         /*
-         * Históricamente WhatsApp fue creado con grupo=gestion en BD.
-         * La navegación actual ya lo trata como módulo principal propio,
-         * por lo que aquí normalizamos solo su presentación de permisos.
-         * No requiere alterar la base de datos existente.
+         * WhatsApp fue creado históricamente dentro de Gestión en BD.
+         * Aquí solo normalizamos su presentación sin tocar el esquema.
          */
         $grupo = (string)$modulo['grupo'];
         if ((string)$modulo['clave'] === 'whatsapp') {
@@ -119,6 +117,28 @@ try {
                 (int)$modulo['puede_ver'] === 1,
                 (int)$modulo['puede_modificar'] === 1
             );
+
+            /*
+             * Messenger se lee sin migraciones ni INFORMATION_SCHEMA.
+             * Si la columna aún no existe en una instalación antigua,
+             * mantenemos el canal desactivado hasta el primer guardado.
+             */
+            $messengerEnabled = $usuario['rol'] === 'admin' ? 1 : 0;
+            if ($usuario['rol'] !== 'admin') {
+                try {
+                    $stmtMessenger = $pdo->prepare("
+                        SELECT canal_messenger
+                        FROM usuarios_whatsapp_permisos
+                        WHERE usuario_id = :usuario_id
+                        LIMIT 1
+                    ");
+                    $stmtMessenger->execute([':usuario_id' => $usuarioId]);
+                    $messengerEnabled = (int)($stmtMessenger->fetchColumn() ?: 0) === 1 ? 1 : 0;
+                } catch (Throwable $ignored) {
+                    $messengerEnabled = 0;
+                }
+            }
+            $modulePayload['whatsapp']['canal_messenger'] = $messengerEnabled;
         }
 
         $grupos[$grupo]['modulos'][] = $modulePayload;
@@ -151,11 +171,5 @@ try {
 
 } catch (Throwable $e) {
     error_log('Usuarios permisos-list: ' . $e->getMessage());
-
-    usuarios_json(
-        false,
-        'No se pudieron cargar los permisos.',
-        [],
-        500
-    );
+    usuarios_json(false, 'No se pudieron cargar los permisos.', [], 500);
 }

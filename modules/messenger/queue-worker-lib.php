@@ -141,6 +141,11 @@ function messenger_media_download(
     }
 
     $ch = curl_init($url);
+    $maxBytes = messenger_media_limit($type);
+    if ($maxBytes <= 0) {
+        $maxBytes = 25 * 1024 * 1024;
+    }
+    $tooLarge = false;
 
     curl_setopt_array($ch, [
         CURLOPT_FILE => $handle,
@@ -149,6 +154,20 @@ function messenger_media_download(
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => 25,
         CURLOPT_USERAGENT => 'SIGOI-Messenger/1.0',
+        CURLOPT_NOPROGRESS => false,
+        CURLOPT_XFERINFOFUNCTION => static function (
+            $resource,
+            float $downloadSize,
+            float $downloaded,
+            float $uploadSize,
+            float $uploaded
+        ) use ($maxBytes, &$tooLarge): int {
+            if ($downloadSize > $maxBytes || $downloaded > $maxBytes) {
+                $tooLarge = true;
+                return 1;
+            }
+            return 0;
+        },
     ]);
 
     $ok = curl_exec($ch);
@@ -164,10 +183,11 @@ function messenger_media_download(
 
     if (
         !$ok
+        || $tooLarge
         || $code < 200
         || $code >= 300
         || $downloadedSize <= 0
-        || $downloadedSize > (25 * 1024 * 1024)
+        || $downloadedSize > $maxBytes
     ) {
         @unlink($tmp);
 

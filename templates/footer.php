@@ -45,11 +45,15 @@ window.SIGOI_WHATSAPP_MENU_PERMISSIONS = <?= json_encode(
 <script src="assets/js/sigoi-whatsapp-guard.js?v=4.3"></script>
 
 <?php if ($currentPage === 'whatsapp.php'): ?>
-    <script src="assets/js/sigoi-messenger-channel.js?v=<?= rawurlencode($sigoiVersion) ?>"></script>
+    <script src="assets/js/sigoi-inbox-multichannel.js?v=<?= rawurlencode($sigoiVersion) ?>"></script>
 <?php endif; ?>
 
 <?php if ($currentPage === 'usuarios.php'): ?>
-    <script src="assets/js/sigoi-messenger-permissions.js?v=5.0"></script>
+    <script src="assets/js/sigoi-permissions-multichannel.js?v=<?= rawurlencode($sigoiVersion) ?>"></script>
+<?php endif; ?>
+
+<?php if ($currentPage === 'estado-sistema.php'): ?>
+    <script src="assets/js/system-health.js?v=<?= rawurlencode($sigoiVersion) ?>"></script>
 <?php endif; ?>
 
 </body>
