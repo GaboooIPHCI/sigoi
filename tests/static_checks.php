@@ -71,10 +71,13 @@ if (is_dir($root . '/.git') && function_exists('shell_exec')) {
     }
 }
 
-$jsPatterns = [
+/*
+ * Prohibiciones globales:
+ * estos monkey patches no deben existir en ningún JavaScript del sistema.
+ */
+$globalJsPatterns = [
     '/window\s*\.\s*fetch\s*=/' => 'No se permite reemplazar window.fetch.',
     '/window\s*\.\s*setInterval\s*=/' => 'No se permite reemplazar window.setInterval.',
-    '/new\s+MutationObserver\s*\(/' => 'No se permite reintroducir MutationObserver como parche de la bandeja.',
 ];
 
 foreach (sigoi_test_files($root . '/assets/js', 'js') as $file) {
@@ -82,10 +85,45 @@ foreach (sigoi_test_files($root . '/assets/js', 'js') as $file) {
     if (!is_string($code)) {
         continue;
     }
-    foreach ($jsPatterns as $pattern => $message) {
+
+    foreach ($globalJsPatterns as $pattern => $message) {
         if (preg_match($pattern, $code)) {
             $errors[] = $message . ' Archivo: ' . $file;
         }
+    }
+}
+
+/*
+ * MutationObserver no está prohibido de forma global.
+ * Existen usos históricos legítimos en navegación/guardas.
+ *
+ * La regresión que queremos impedir es volver a usarlo como parche dentro
+ * de la integración multicanal/permisos, donde anteriormente provocó un
+ * bucle de mutaciones y congelamiento de la pestaña.
+ */
+$multichannelJsFiles = [
+    'assets/js/sigoi-channel-permissions.js',
+    'assets/js/sigoi-permissions-multichannel.js',
+    'assets/js/sigoi-inbox-multichannel.js',
+    'assets/js/sigoi-inbox-preload.js',
+    'assets/js/sigoi-messenger-channel.js',
+    'assets/js/sigoi-messenger-preload.js',
+];
+
+foreach ($multichannelJsFiles as $relative) {
+    $file = $root . '/' . $relative;
+
+    if (!is_file($file)) {
+        continue;
+    }
+
+    $code = file_get_contents($file);
+    if (!is_string($code)) {
+        continue;
+    }
+
+    if (preg_match('/new\s+MutationObserver\s*\(/', $code)) {
+        $errors[] = 'No se permite reintroducir MutationObserver como parche multicanal. Archivo: ' . $file;
     }
 }
 
